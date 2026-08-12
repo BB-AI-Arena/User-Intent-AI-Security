@@ -1,0 +1,11 @@
+---
+- name: Restart Intent Gate stack
+  community.docker.docker_compose_v2:
+    project_src: "{{ intentgate_install_dir }}"
+    files:
+      - docker-compose.observability.yml
+    env_files:
+      - .env.integrations
+    profiles: "{{ intentgate_compose_profiles }}"
+    state: restarted
+  no_log: true

@@ -1,0 +1,17 @@
+project_name = "intentgate-example"
+
+# Use a named Docker context for a remote or alternate engine.
+# docker_context = "example-context"
+
+# Or provide a daemon URI. Do not disable SSH host-key checking.
+# docker_host = "ssh://automation@example-host:22"
+
+# Keep this file outside version control when it contains deployment values.
+# environment_file = "../../.env.integrations"
+
+# Enable only after the corresponding configuration and secrets exist.
+profiles = []
+# profiles = ["collectors", "notifications"]
+
+wait_timeout = "2m"
+

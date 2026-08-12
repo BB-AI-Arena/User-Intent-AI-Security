@@ -17,4 +17,5 @@ All notable changes to this project will be documented here.
 - Redacted asynchronous manager/security risk reports
 - Generic, Slack, and Microsoft Teams webhook delivery
 - Automated tests and repository governance documentation
-
+- Terraform Docker Compose deployment module
+- Ansible Linux host bootstrap and secure deployment role

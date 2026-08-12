@@ -12,4 +12,5 @@ config/integrations.json
 tests
 docs
 observability
+deploy
 *.log

@@ -9,6 +9,8 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-2ea44f.svg)](LICENSE)
 [![Status: POC](https://img.shields.io/badge/status-proof%20of%20concept-f59e0b)](#project-status)
 [![Docker](https://img.shields.io/badge/observability-Docker%20Compose-2496ED?logo=docker&logoColor=white)](docker-compose.observability.yml)
+[![Terraform](https://img.shields.io/badge/IaC-Terraform-844FBA?logo=terraform&logoColor=white)](deploy/terraform)
+[![Ansible](https://img.shields.io/badge/automation-Ansible-EE0000?logo=ansible&logoColor=white)](deploy/ansible)
 
 **A context-aware command execution gate that asks one critical question before code runs: _does this action match the user's intent?_**
 
@@ -208,6 +210,33 @@ uig-notifier
 ```
 
 Reporting is disabled until explicitly configured, and command execution never waits for delivery. Organizations should establish employee notice, retention, access control, and appeal procedures before deployment.
+
+## Infrastructure as code
+
+The repository includes two supported automation paths. Both reuse the canonical Compose definition instead of maintaining divergent copies of the application stack.
+
+### Terraform
+
+The [`deploy/terraform`](deploy/terraform) root module uses the `kreuzwerker/docker` provider's native `docker_compose` resource. It supports local engines, named Docker contexts, remote daemon URIs, optional environment files, Compose profiles, health waiting, and clean Terraform-managed teardown.
+
+```bash
+cd deploy/terraform
+terraform init
+terraform plan
+terraform apply
+```
+
+### Ansible
+
+The [`deploy/ansible`](deploy/ansible) role can bootstrap Docker Engine and Compose v2 on a Debian-family server, check out an approved version, render a protected environment file from Ansible Vault variables, deploy the stack, and verify the Intent Gate health endpoint.
+
+```bash
+cd deploy/ansible
+ansible-galaxy collection install -r requirements.yml
+ansible-playbook -i inventories/production.ini deploy.yml --ask-vault-pass
+```
+
+Terraform state, local variable files, production inventories, host variables, Vault material, and rendered secrets are excluded from Git. See the individual Terraform and Ansible guides for remote-host and lifecycle details.
 
 ## Development
 
