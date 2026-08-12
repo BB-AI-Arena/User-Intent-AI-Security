@@ -19,6 +19,9 @@
 
 </div>
 
+> [!TIP]
+> **WAF-protected by default.** The Docker deployment puts the official **OWASP ModSecurity Core Rule Set 4.25 LTS** in blocking mode in front of every published Intent Gate API route. The backend has no host port, while SQL injection probes, unsupported methods, malformed JSON, and oversized payloads are rejected at the edge. [Explore the WAF design and tuning guide →](docs/WAF.md)
+
 > [!IMPORTANT]
 > User Intent AI Security is an early proof of concept, not a standalone security boundary. Reliable enforcement requires integration at a command broker, shell host, agent tool API, container runtime, or privileged-operation choke point that cannot be bypassed.
 
