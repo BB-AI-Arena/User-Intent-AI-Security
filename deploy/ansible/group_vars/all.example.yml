@@ -9,6 +9,15 @@ intentgate_ingest_token: "replace-with-vault-secret"
 intentgate_grafana_admin_user: "admin"
 intentgate_grafana_admin_password: "replace-with-vault-secret"
 
+intentgate_bind_address: "127.0.0.1"
+intentgate_waf_port: 8787
+intentgate_waf_server_name: "localhost"
+intentgate_waf_mode: "On"
+intentgate_waf_blocking_paranoia: 1
+intentgate_waf_detection_paranoia: 2
+intentgate_waf_inbound_threshold: 5
+intentgate_waf_outbound_threshold: 4
+
 intentgate_manager_id: "security-operations"
 intentgate_manager_report_threshold: 70
 intentgate_manager_webhook_url: ""

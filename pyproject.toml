@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "user-intent-gate"
-version = "0.3.0"
+version = "0.4.0"
 description = "A low-latency, context-aware command intent gate proof of concept"
 readme = "README.md"
 requires-python = ">=3.11"

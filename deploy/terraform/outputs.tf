@@ -9,7 +9,7 @@ output "prometheus_url" {
 }
 
 output "intentgate_api_url" {
-  description = "Default local Intent Gate API URL."
+  description = "Default local WAF-protected Intent Gate API URL."
   value       = "http://localhost:8787"
 }
 

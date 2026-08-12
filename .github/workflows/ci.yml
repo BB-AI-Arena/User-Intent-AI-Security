@@ -35,6 +35,32 @@ jobs:
       - name: Validate Docker Compose
         run: docker compose -f docker-compose.observability.yml config --quiet
 
+  waf:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start protected API edge
+        run: docker compose -f docker-compose.observability.yml up -d --build intentgate waf
+      - name: Verify benign traffic and backend isolation
+        shell: bash
+        run: |
+          curl --fail --retry 20 --retry-delay 2 --retry-all-errors http://127.0.0.1:8787/healthz
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' --get --data-urlencode 'user=example-user' http://127.0.0.1:8787/v1/posture)" = "200"
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' --header 'Authorization: Bearer local-dev-change-me' --header 'Content-Type: application/json' --data '{"source":"ci","event_id":"benign","score":1,"confidence":1,"ttl_seconds":60,"detail":"WAF verification"}' http://127.0.0.1:8787/v1/signals)" = "202"
+          intentgate_id="$(docker compose -f docker-compose.observability.yml ps --quiet intentgate)"
+          docker inspect "$intentgate_id" | jq --exit-status '.[0].NetworkSettings.Ports["8787/tcp"] == null'
+      - name: Verify CRS blocks an injection probe
+        shell: bash
+        run: |
+          test "$(curl --silent --output /dev/null --write-out '%{http_code}' --get --data-urlencode "user=' OR 1=1 --" http://127.0.0.1:8787/v1/posture)" = "403"
+      - name: Show WAF logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.observability.yml logs waf
+      - name: Stop test stack
+        if: always()
+        run: docker compose -f docker-compose.observability.yml down --volumes
+
   terraform:
     runs-on: ubuntu-latest
     steps:

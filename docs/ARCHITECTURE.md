@@ -18,10 +18,13 @@ The command path should remain fast enough that users do not notice the gate dur
 | `reporting.py` | Redact and queue high-risk reports | Local append after decision |
 | `notifier.py` | Deliver reports to approved webhooks | Background |
 | `service.py` | Ingest signals and expose posture and Prometheus metrics | Background |
+| OWASP CRS WAF | Inspect, constrain, and proxy all host-originated API traffic | Network edge |
 
 ## Data flow
 
 External signals receive a score, confidence, scope, and TTL. The correlation layer takes the highest effective signal and adds bounded corroboration from other sources. The gate reads only non-expired local state.
+
+The Docker deployment publishes only the OWASP Core Rule Set WAF. The Intent Gate service is isolated on an internal application network; Prometheus reaches it there for scraping, while external webhook and API clients traverse the WAF. See [WAF Operations](WAF.md).
 
 Audit and report files are local JSON/JSONL in `UIG_STATE_DIR`. The PowerShell helper defaults this to `.intentgate-state` in the project so the host CLI and Docker observability services share the same state.
 
