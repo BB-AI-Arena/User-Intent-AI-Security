@@ -1,0 +1,37 @@
+name: Bug report
+description: Report a reproducible defect or incorrect policy outcome.
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: Do not include credentials, private command history, or sensitive security events.
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction
+      description: Provide a minimal sanitized command and configuration.
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, Python version, shell, and project version.
+    validations:
+      required: true
+  - type: dropdown
+    id: decision
+    attributes:
+      label: Incorrect decision
+      options: [ALLOW, REVIEW, BLOCK, Not applicable]
+    validations:
+      required: true
+

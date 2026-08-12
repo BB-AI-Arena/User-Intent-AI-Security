@@ -1,0 +1,90 @@
+{
+  "integrations": [
+    {
+      "name": "windows-defender",
+      "kind": "windows_defender",
+      "enabled": true,
+      "ttl_seconds": 120,
+      "threat_ttl_seconds": 3600
+    },
+    {
+      "name": "microsoft-defender-xdr",
+      "enabled": false,
+      "url": "https://api.security.microsoft.com/api/alerts?$top=100",
+      "bearer_token_env": "DEFENDER_XDR_TOKEN",
+      "records_path": "value",
+      "id_path": "id",
+      "severity_path": "severity",
+      "detail_path": "title",
+      "scope_paths": {"device": "computerDnsName"},
+      "exclude_values": {"status": ["Resolved"]},
+      "ttl_seconds": 300
+    },
+    {
+      "name": "microsoft-sentinel",
+      "enabled": false,
+      "url": "https://management.azure.com/subscriptions/SUB/resourceGroups/RG/providers/Microsoft.OperationalInsights/workspaces/WORKSPACE/providers/Microsoft.SecurityInsights/incidents?api-version=2024-09-01",
+      "bearer_token_env": "MICROSOFT_SENTINEL_TOKEN",
+      "records_path": "value",
+      "id_path": "name",
+      "severity_path": "properties.severity",
+      "detail_path": "properties.title",
+      "exclude_values": {"properties.status": ["Closed"]},
+      "ttl_seconds": 300
+    },
+    {
+      "name": "crowdstrike-falcon",
+      "enabled": false,
+      "url": "https://YOUR-SECURITY-NORMALIZER/crowdstrike/detections",
+      "bearer_token_env": "CROWDSTRIKE_ACCESS_TOKEN",
+      "records_path": "detections",
+      "id_path": "id",
+      "severity_path": "max_severity_displayname",
+      "detail_path": "description",
+      "ttl_seconds": 300
+    },
+    {
+      "name": "sentinelone",
+      "enabled": false,
+      "url": "https://YOUR-S1-CONSOLE/web/api/v2.1/threats?limit=100",
+      "api_token_env": "SENTINELONE_API_TOKEN",
+      "api_token_header": "Authorization",
+      "api_token_prefix": "ApiToken ",
+      "records_path": "data",
+      "id_path": "id",
+      "severity_path": "threatInfo.confidenceLevel",
+      "detail_path": "threatInfo.threatName",
+      "scope_paths": {"device": "agentRealtimeInfo.agentComputerName"},
+      "ttl_seconds": 300
+    },
+    {
+      "name": "splunk-enterprise-security",
+      "enabled": false,
+      "url": "https://YOUR-SPLUNK:8089/services/search/jobs/export?output_mode=json&search=search%20index%3Dnotable",
+      "api_token_env": "SPLUNK_TOKEN",
+      "api_token_header": "Authorization",
+      "api_token_prefix": "Splunk ",
+      "id_path": "event_id",
+      "severity_path": "severity",
+      "detail_path": "rule_name",
+      "scope_paths": {"device": "dest", "user": "user"},
+      "ttl_seconds": 300
+    },
+    {
+      "name": "elastic-security",
+      "enabled": false,
+      "url": "https://YOUR-ELASTIC/api/detection_engine/signals/search",
+      "method": "POST",
+      "body": {"query": {"bool": {"filter": [{"range": {"@timestamp": {"gte": "now-5m"}}}]}}, "size": 100},
+      "api_token_env": "ELASTIC_API_KEY",
+      "api_token_header": "Authorization",
+      "api_token_prefix": "ApiKey ",
+      "records_path": "hits.hits",
+      "id_path": "_id",
+      "severity_path": "_source.kibana.alert.severity",
+      "detail_path": "_source.kibana.alert.rule.name",
+      "scope_paths": {"device": "_source.host.name", "user": "_source.user.name"},
+      "ttl_seconds": 300
+    }
+  ]
+}

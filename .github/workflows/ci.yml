@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        python-version: ["3.11", "3.13"]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install
+        run: python -m pip install -e .
+      - name: Test
+        run: python -m unittest discover -s tests -v
+      - name: Compile
+        run: python -m compileall -q src tests
+
+  compose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate Docker Compose
+        run: docker compose -f docker-compose.observability.yml config --quiet
+
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.14.0"
+      - name: Check formatting
+        run: terraform -chdir=deploy/terraform fmt -check -recursive
+      - name: Initialize providers
+        run: terraform -chdir=deploy/terraform init -backend=false
+      - name: Validate configuration
+        run: terraform -chdir=deploy/terraform validate
+
+  ansible:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - name: Install Ansible
+        run: python -m pip install "ansible-core>=2.18,<2.20" ansible-lint
+      - name: Install collections
+        run: ansible-galaxy collection install -r deploy/ansible/requirements.yml
+      - name: Syntax check
+        working-directory: deploy/ansible
+        run: ansible-playbook -i inventories/example.ini deploy.yml --syntax-check
+      - name: Lint playbook and role
+        working-directory: deploy/ansible
+        run: ansible-lint deploy.yml roles

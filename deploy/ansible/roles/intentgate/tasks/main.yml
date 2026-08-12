@@ -1,0 +1,149 @@
+---
+- name: Validate required deployment secrets
+  ansible.builtin.assert:
+    that:
+      - intentgate_ingest_token | length >= 24
+      - intentgate_grafana_admin_password | length >= 12
+    fail_msg: >-
+      Set a unique ingest token of at least 24 characters and a Grafana administrator
+      password of at least 12 characters, preferably through Ansible Vault.
+  no_log: true
+
+- name: Validate supported automatic Docker installation platform
+  ansible.builtin.assert:
+    that:
+      - ansible_os_family == "Debian"
+    fail_msg: >-
+      Automatic Docker installation currently supports Debian-family hosts.
+      Set intentgate_manage_docker=false when Docker Engine and Compose v2 are already installed.
+  when: intentgate_manage_docker | bool
+
+- name: Install base operating-system packages
+  ansible.builtin.apt:
+    name:
+      - ca-certificates
+      - curl
+      - git
+      - python3-debian
+    state: present
+    update_cache: true
+  when: intentgate_manage_docker | bool
+
+- name: Create Docker APT keyring directory
+  ansible.builtin.file:
+    path: /etc/apt/keyrings
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: intentgate_manage_docker | bool
+
+- name: Install Docker repository signing key
+  ansible.builtin.get_url:
+    url: "https://download.docker.com/linux/{{ ansible_distribution | lower }}/gpg"
+    dest: /etc/apt/keyrings/docker.asc
+    owner: root
+    group: root
+    mode: "0644"
+  when: intentgate_manage_docker | bool
+
+- name: Configure the Docker package repository
+  ansible.builtin.deb822_repository:
+    name: docker
+    types: [deb]
+    uris: "https://download.docker.com/linux/{{ ansible_distribution | lower }}"
+    suites: ["{{ ansible_distribution_release }}"]
+    components: [stable]
+    architectures: ["{{ intentgate_docker_architecture_map.get(ansible_architecture, ansible_architecture) }}"]
+    signed_by: /etc/apt/keyrings/docker.asc
+    state: present
+  register: intentgate_docker_repository
+  when: intentgate_manage_docker | bool
+
+- name: Install Docker Engine and Compose v2
+  ansible.builtin.apt:
+    name:
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-ce
+      - docker-ce-cli
+      - docker-compose-plugin
+    state: present
+    update_cache: "{{ intentgate_docker_repository.changed | default(false) }}"
+  when: intentgate_manage_docker | bool
+
+- name: Enable and start Docker Engine
+  ansible.builtin.service:
+    name: docker
+    enabled: true
+    state: started
+  when: intentgate_manage_docker | bool
+
+- name: Check out the approved Intent Gate version
+  ansible.builtin.git:
+    repo: "{{ intentgate_repository_url }}"
+    dest: "{{ intentgate_install_dir }}"
+    version: "{{ intentgate_version }}"
+    update: "{{ intentgate_pull_repository }}"
+    force: false
+  notify: Restart Intent Gate stack
+
+- name: Create private runtime state directory
+  ansible.builtin.file:
+    path: "{{ intentgate_install_dir }}/.intentgate-state"
+    state: directory
+    owner: root
+    group: root
+    mode: "0700"
+
+- name: Check for integration configuration
+  ansible.builtin.stat:
+    path: "{{ intentgate_install_dir }}/config/integrations.json"
+  register: intentgate_integrations_file
+
+- name: Seed disabled integration configuration
+  ansible.builtin.copy:
+    src: "{{ intentgate_install_dir }}/config/integrations.example.json"
+    dest: "{{ intentgate_install_dir }}/config/integrations.json"
+    remote_src: true
+    owner: root
+    group: root
+    mode: "0600"
+  when: not intentgate_integrations_file.stat.exists
+
+- name: Render protected deployment environment
+  ansible.builtin.template:
+    src: env.integrations.j2
+    dest: "{{ intentgate_install_dir }}/.env.integrations"
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+  notify: Restart Intent Gate stack
+
+- name: Deploy Intent Gate with Docker Compose v2
+  community.docker.docker_compose_v2:
+    project_src: "{{ intentgate_install_dir }}"
+    files:
+      - docker-compose.observability.yml
+    env_files:
+      - .env.integrations
+    profiles: "{{ intentgate_compose_profiles }}"
+    state: present
+    build: always
+    pull: policy
+    remove_orphans: true
+    wait: true
+    wait_timeout: 120
+  no_log: true
+
+- name: Verify the Intent Gate health endpoint
+  ansible.builtin.uri:
+    url: http://127.0.0.1:8787/healthz
+    method: GET
+    status_code: 200
+    return_content: true
+  register: intentgate_health
+  retries: 10
+  delay: 3
+  until: intentgate_health.json.status | default('') == 'ok'

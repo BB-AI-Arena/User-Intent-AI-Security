@@ -1,0 +1,20 @@
+---
+intentgate_repository_url: "https://github.com/BB-AI-Arena/User-Intent-AI-Security.git"
+intentgate_version: "main"
+intentgate_install_dir: "/opt/user-intent-ai-security"
+intentgate_manage_docker: true
+intentgate_compose_profiles: []
+intentgate_pull_repository: true
+intentgate_docker_architecture_map:
+  x86_64: amd64
+  aarch64: arm64
+  armv7l: armhf
+
+intentgate_ingest_token: ""
+intentgate_manager_id: ""
+intentgate_manager_report_threshold: 70
+intentgate_manager_webhook_url: ""
+intentgate_manager_webhook_token: ""
+intentgate_manager_webhook_style: "generic"
+intentgate_grafana_admin_user: "admin"
+intentgate_grafana_admin_password: ""

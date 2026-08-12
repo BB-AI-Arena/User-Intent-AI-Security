@@ -1,0 +1,37 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.test-state/
+.intentgate-state/
+dist/
+build/
+*.egg-info/
+.env
+.env.*
+!.env.integrations.example
+config/integrations.json
+*.log
+*.local.*
+history.jsonl
+manager-reports/
+
+# Terraform state and local inputs
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+!*.tfvars.example
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Ansible operator inventory, Vault data, and retry artifacts
+deploy/ansible/inventories/*.ini
+!deploy/ansible/inventories/example.ini
+deploy/ansible/group_vars/all.yml
+deploy/ansible/host_vars/
+*.retry

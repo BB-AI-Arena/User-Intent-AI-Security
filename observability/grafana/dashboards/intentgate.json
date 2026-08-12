@@ -1,0 +1,87 @@
+{
+  "annotations": {"list": []},
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 1,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"max": 100, "min": 0, "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 40}, {"color": "orange", "value": 70}, {"color": "red", "value": 90}]}}},
+      "gridPos": {"h": 8, "w": 6, "x": 0, "y": 0},
+      "id": 1,
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "values": false}, "showThresholdLabels": false, "showThresholdMarkers": true},
+      "targets": [{"expr": "intentgate_security_posture", "refId": "A"}],
+      "title": "External Security Posture",
+      "type": "gauge"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"unit": "ms"}},
+      "gridPos": {"h": 8, "w": 6, "x": 6, "y": 0},
+      "id": 2,
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "values": false}},
+      "targets": [{"expr": "intentgate_decision_latency_ms", "refId": "A"}],
+      "title": "Policy Engine Latency",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {}},
+      "gridPos": {"h": 8, "w": 6, "x": 12, "y": 0},
+      "id": 3,
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "values": false}},
+      "targets": [{"expr": "intentgate_active_external_signals", "refId": "A"}],
+      "title": "Active AV / SIEM Signals",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {}},
+      "gridPos": {"h": 8, "w": 6, "x": 18, "y": 0},
+      "id": 4,
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "values": false}},
+      "targets": [{"expr": "intentgate_audit_events", "refId": "A"}],
+      "title": "Audited Commands",
+      "type": "stat"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"max": 100, "min": 0}},
+      "gridPos": {"h": 9, "w": 12, "x": 0, "y": 8},
+      "id": 5,
+      "targets": [{"expr": "intentgate_source_risk", "legendFormat": "{{source}}", "refId": "A"}],
+      "title": "Risk by Integration",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {}},
+      "gridPos": {"h": 9, "w": 12, "x": 12, "y": 8},
+      "id": 6,
+      "targets": [{"expr": "intentgate_decisions_total", "legendFormat": "{{decision}}", "refId": "A"}],
+      "title": "Gate Decisions",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {"type": "prometheus", "uid": "prometheus"},
+      "fieldConfig": {"defaults": {"thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "orange", "value": 1}, {"color": "red", "value": 10}]}}},
+      "gridPos": {"h": 6, "w": 6, "x": 0, "y": 17},
+      "id": 7,
+      "options": {"reduceOptions": {"calcs": ["lastNotNull"], "values": false}},
+      "targets": [{"expr": "intentgate_pending_manager_reports", "refId": "A"}],
+      "title": "Pending Manager Reports",
+      "type": "stat"
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 40,
+  "tags": ["security", "intentgate"],
+  "templating": {"list": []},
+  "time": {"from": "now-1h", "to": "now"},
+  "timezone": "browser",
+  "title": "User Intent Gate",
+  "uid": "user-intent-gate",
+  "version": 1
+}
