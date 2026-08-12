@@ -9,6 +9,19 @@
       password of at least 12 characters, preferably through Ansible Vault.
   no_log: true
 
+- name: Validate WAF policy settings
+  ansible.builtin.assert:
+    that:
+      - intentgate_waf_mode in ['On', 'DetectionOnly']
+      - intentgate_waf_blocking_paranoia | int in [1, 2, 3, 4]
+      - intentgate_waf_detection_paranoia | int in [1, 2, 3, 4]
+      - intentgate_waf_detection_paranoia | int >= intentgate_waf_blocking_paranoia | int
+      - intentgate_waf_inbound_threshold | int > 0
+      - intentgate_waf_outbound_threshold | int > 0
+      - intentgate_waf_port | int > 0
+      - intentgate_waf_port | int < 65536
+    fail_msg: "Use a supported WAF mode, paranoia levels from 1-4, and positive thresholds and port."
+
 - name: Validate supported automatic Docker installation platform
   ansible.builtin.assert:
     that:
@@ -139,7 +152,7 @@
 
 - name: Verify the Intent Gate health endpoint
   ansible.builtin.uri:
-    url: http://127.0.0.1:8787/healthz
+    url: "http://127.0.0.1:{{ intentgate_waf_port }}/healthz"
     method: GET
     status_code: 200
     return_content: true

@@ -1,6 +1,6 @@
 # Terraform deployment
 
-This root module manages the existing Docker Compose application through the `kreuzwerker/docker` provider. It intentionally reuses `docker-compose.observability.yml` so service definitions remain canonical in one place.
+This root module manages the existing Docker Compose application through the `kreuzwerker/docker` provider. It intentionally reuses `docker-compose.observability.yml` so service definitions remain canonical in one place, including the OWASP CRS WAF and internal application network.
 
 ## Requirements
 

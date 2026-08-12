@@ -9,6 +9,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-2ea44f.svg)](LICENSE)
 [![Status: POC](https://img.shields.io/badge/status-proof%20of%20concept-f59e0b)](#project-status)
 [![Docker](https://img.shields.io/badge/observability-Docker%20Compose-2496ED?logo=docker&logoColor=white)](docker-compose.observability.yml)
+[![WAF](https://img.shields.io/badge/WAF-OWASP%20CRS-000000?logo=owasp&logoColor=white)](docs/WAF.md)
 [![Terraform](https://img.shields.io/badge/IaC-Terraform-844FBA?logo=terraform&logoColor=white)](deploy/terraform)
 [![Ansible](https://img.shields.io/badge/automation-Ansible-EE0000?logo=ansible&logoColor=white)](deploy/ansible)
 
@@ -46,6 +47,7 @@ The ordinary-command hot path is local and deterministic. External APIs, SIEM qu
 - **AI-assisted code risk signals** — performs a bounded, cached code-health/provenance scan without claiming unreliable authorship detection.
 - **Privacy-conscious escalation** — queues redacted risk reports for an approved manager or security webhook.
 - **Operational visibility** — ships with Prometheus metrics and a provisioned Grafana dashboard.
+- **Protected API edge** — routes every published API request through OWASP ModSecurity CRS while keeping the backend on an internal-only network.
 - **Standard-library core** — the gate has no mandatory runtime dependencies outside Python 3.11+.
 
 ## How it works
@@ -57,6 +59,9 @@ flowchart LR
     C --> P["Policy engine"]
     AV["AV / EDR / SIEM"] --> N["Normalized signal cache"]
     S["Provenance scanner"] --> N
+    X["Security webhooks"] --> W["OWASP CRS WAF"]
+    W --> API["Signal API"]
+    API --> N
     N --> P
     P -->|"Low risk"| A["ALLOW"]
     P -->|"Ambiguous"| R["REVIEW"]
@@ -190,9 +195,20 @@ docker compose --env-file .env.integrations -f docker-compose.observability.yml 
 |---|---|
 | Grafana | `http://localhost:3000` |
 | Prometheus | `http://localhost:9090` |
-| Intent Gate API | `http://localhost:8787` |
+| WAF-protected Intent Gate API | `http://localhost:8787` |
 
 The dashboard tracks aggregate security posture, active external signals, decision counts, policy latency, source-level risk, audited commands, and pending manager reports.
+
+## Web application firewall
+
+Docker deployments publish the official OWASP ModSecurity Core Rule Set Nginx proxy instead of the application container. The backend has no host port and lives on an internal-only network. Blocking is enabled by default at paranoia level 1, with additional level 2 detection telemetry, strict HTTP methods and content types, a 1 MiB body limit, disabled routine access logging, and bounded audit logs that exclude request headers and bodies.
+
+```bash
+curl http://127.0.0.1:8787/healthz
+docker compose -f docker-compose.observability.yml logs waf
+```
+
+Configuration is available through the ignored environment file and the Ansible role. Review [WAF Operations](docs/WAF.md) before changing thresholds, adding rule exclusions, or publishing the listener beyond loopback.
 
 > [!WARNING]
 > Development credentials are intentionally simple. Change all passwords and tokens before exposing any service beyond localhost.
@@ -252,7 +268,7 @@ The current suite covers policy outcomes, destructive patterns, privilege amplif
 
 ## Project status
 
-Version **0.3.0** is a research-quality proof of concept. Important production work remains:
+Version **0.4.0** is a research-quality proof of concept. Important production work remains:
 
 - Enforce at a non-bypassable execution boundary.
 - Replace command regexes with PowerShell, POSIX shell, and command AST parsers.

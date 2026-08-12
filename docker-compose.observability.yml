@@ -1,4 +1,43 @@
 services:
+  waf:
+    image: owasp/modsecurity-crs:4.25.0-nginx-lts
+    environment:
+      BACKEND: http://intentgate:8787
+      PORT: "8080"
+      SERVER_NAME: ${UIG_WAF_SERVER_NAME:-localhost}
+      MODSEC_RULE_ENGINE: ${UIG_WAF_MODE:-On}
+      MODSEC_AUDIT_ENGINE: RelevantOnly
+      MODSEC_AUDIT_LOG: /dev/stdout
+      # Do not record request headers or bodies; they can contain ingest credentials or sensitive telemetry.
+      MODSEC_AUDIT_LOG_PARTS: AFHZ
+      ACCESSLOG: /dev/null
+      MODSEC_REQ_BODY_ACCESS: "On"
+      MODSEC_REQ_BODY_LIMIT: "1048576"
+      MODSEC_REQ_BODY_NOFILES_LIMIT: "1048576"
+      MODSEC_RESP_BODY_ACCESS: "Off"
+      BLOCKING_PARANOIA: ${UIG_WAF_BLOCKING_PARANOIA:-1}
+      DETECTION_PARANOIA: ${UIG_WAF_DETECTION_PARANOIA:-2}
+      ANOMALY_INBOUND: ${UIG_WAF_INBOUND_THRESHOLD:-5}
+      ANOMALY_OUTBOUND: ${UIG_WAF_OUTBOUND_THRESHOLD:-4}
+      ALLOWED_METHODS: GET POST
+      ALLOWED_REQUEST_CONTENT_TYPE: "|application/json|"
+      VALIDATE_UTF8_ENCODING: "1"
+      SERVER_TOKENS: "off"
+    ports:
+      - "${UIG_BIND_ADDRESS:-127.0.0.1}:${UIG_WAF_PORT:-8787}:8080"
+    depends_on:
+      intentgate:
+        condition: service_healthy
+    networks: [edge, application]
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "5"
+    restart: unless-stopped
+
   intentgate:
     build: .
     environment:
@@ -6,8 +45,14 @@ services:
       UIG_INGEST_TOKEN: ${UIG_INGEST_TOKEN:-local-dev-change-me}
     volumes:
       - ./.intentgate-state:/state
-    ports:
-      - "8787:8787"
+    expose: ["8787"]
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8787/healthz', timeout=2)"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    networks: [application]
     restart: unless-stopped
 
   prometheus:
@@ -17,8 +62,11 @@ services:
       - ./observability/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus-data:/prometheus
     ports:
-      - "9090:9090"
-    depends_on: [intentgate]
+      - "${UIG_BIND_ADDRESS:-127.0.0.1}:${PROMETHEUS_PORT:-9090}:9090"
+    depends_on:
+      intentgate:
+        condition: service_healthy
+    networks: [application, observability, management]
     restart: unless-stopped
 
   grafana:
@@ -32,8 +80,9 @@ services:
       - ./observability/grafana/dashboards:/var/lib/grafana/dashboards:ro
       - grafana-data:/var/lib/grafana
     ports:
-      - "3000:3000"
+      - "${UIG_BIND_ADDRESS:-127.0.0.1}:${GRAFANA_PORT:-3000}:3000"
     depends_on: [prometheus]
+    networks: [observability, management]
     restart: unless-stopped
 
   collector:
@@ -48,6 +97,7 @@ services:
     volumes:
       - ./.intentgate-state:/state
       - ./config/integrations.json:/config/integrations.json:ro
+    networks: [outbound]
     restart: unless-stopped
 
   notifier:
@@ -61,8 +111,18 @@ services:
       UIG_MANAGER_WEBHOOK_STYLE: ${UIG_MANAGER_WEBHOOK_STYLE:-generic}
     volumes:
       - ./.intentgate-state:/state
+    networks: [outbound]
     restart: unless-stopped
 
 volumes:
   prometheus-data:
   grafana-data:
+
+networks:
+  edge:
+  application:
+    internal: true
+  observability:
+    internal: true
+  management:
+  outbound:

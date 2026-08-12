@@ -1,6 +1,6 @@
 # Ansible deployment
 
-This playbook configures a Debian-family Linux host, optionally installs Docker Engine with Compose v2, checks out an approved repository version, renders protected environment configuration, deploys the stack, and verifies its health endpoint.
+This playbook configures a Debian-family Linux host, optionally installs Docker Engine with Compose v2, checks out an approved repository version, renders protected environment and WAF policy configuration, deploys the stack, and verifies the WAF health endpoint.
 
 ## Controller requirements
 
