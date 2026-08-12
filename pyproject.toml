@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "user-intent-gate"
+version = "0.3.0"
+description = "A low-latency, context-aware command intent gate proof of concept"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "BB AI Arena" }]
+dependencies = []
+
+[project.scripts]
+uig = "intentgate.cli:main"
+uig-scan = "intentgate.provenance:main"
+uig-service = "intentgate.service:main"
+uig-collector = "intentgate.collector:main"
+uig-notifier = "intentgate.notifier:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
