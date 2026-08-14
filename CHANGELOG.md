@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented here.
 
+## Unreleased
+
+### Documentation
+
+- Expanded the project narrative, capability reference, applications, outcomes, and production path
+- Added detailed project-importance and real-world use-case guides
+
 ## [0.4.0] - 2026-08-12
 
 ### Added

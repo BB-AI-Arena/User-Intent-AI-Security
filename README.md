@@ -15,7 +15,7 @@
 
 **A context-aware command execution gate that asks one critical question before code runs: _does this action match the user's intent?_**
 
-[Quick start](#quick-start) · [How it works](#how-it-works) · [Integrations](#security-integrations) · [Dashboard](#grafana-dashboard) · [Security](SECURITY.md)
+[Why it matters](#why-this-project-matters) · [Capabilities](#what-the-project-can-do) · [Use cases](#where-it-can-be-used) · [Quick start](#quick-start) · [Architecture](docs/ARCHITECTURE.md) · [Security](SECURITY.md)
 
 </div>
 
@@ -38,6 +38,70 @@ User Intent AI Security adds a pre-execution decision layer. It combines command
 | `BLOCK` | High-confidence destructive or suspicious behavior | Do not execute |
 
 The ordinary-command hot path is local and deterministic. External APIs, SIEM queries, provenance scans, and manager notifications run asynchronously and contribute cached signals without delaying execution.
+
+## Why this project matters
+
+Modern command execution is no longer limited to a person carefully typing into a terminal. Commands are proposed and launched by AI coding assistants, autonomous agents, deployment systems, remote-management tools, scripts, and privileged operators working under time pressure. These systems can produce syntactically valid commands that are still wrong for the task, wrong for the target, or dangerous in the current security context.
+
+Most controls answer one of four questions: _is the file malicious, is the identity authorized, is the command on a denylist, or did something suspicious already happen?_ User Intent AI Security explores a complementary question **before process creation**:
+
+> **Given what this user or agent appears to be trying to accomplish, should this exact command be allowed to run here, now, with this privilege and blast radius?**
+
+That distinction is important because many damaging actions use legitimate, signed, administrator-approved tools. `rm`, PowerShell, `terraform`, `kubectl`, cloud CLIs, database clients, and Git are indispensable—and can also erase data, disable controls, expose secrets, or change production in seconds. Intent-aware enforcement creates a place to combine the command, the task, recent behavior, privilege, project health, and live security posture into one explainable decision.
+
+This project is intended to help teams investigate a missing security layer between **authorization** and **execution**. It does not replace EDR, SIEM, PAM, WAF, or change management; it gives those systems a chance to influence a decision before an irreversible action starts. Read the full [Project Vision](docs/PROJECT_VISION.md).
+
+## What the project can do
+
+| Capability | What it evaluates | Why it is useful |
+|---|---|---|
+| Intent-aware command gating | Command text, optional stated purpose, recent commands, and local context | Finds risky actions that do not fit the declared task |
+| Three-way policy decision | `ALLOW`, `REVIEW`, or `BLOCK` with a 0–100 risk score | Supports silent low-risk work, human confirmation, and hard stops |
+| Blast-radius analysis | Recursive deletion, broad targets, infrastructure destruction, cloud deletion, and other irreversible patterns | Separates a routine change from an operation with widespread impact |
+| Privilege amplification | Linux root and Windows elevated administrator context | Applies greater scrutiny when the same command can do more damage |
+| Behavioral anomaly detection | Per-user command-family frequency from prior gated activity | Highlights unusual administration without treating novelty alone as guilt |
+| Sequence awareness | Recent sensitive actions, such as secret access followed by network transfer | Detects risk that becomes visible only across multiple commands |
+| Project and release context | Git state, tests, code-health indicators, and cached provenance scan | Adds friction before publishing or deploying suspicious or unfinished code |
+| Security posture correlation | Cached AV, EDR, SIEM, device, user, and project-scoped signals | Tightens command policy during an active endpoint or identity incident |
+| Cross-platform destructive catalog | Windows, Linux, macOS, containers, databases, Kubernetes, cloud, Git, and recovery controls | Provides a transparent starting policy that teams can inspect and extend |
+| Explainable evidence | Named signals, score contributions, command fingerprint, and latency | Lets operators understand why a decision occurred and tune policy responsibly |
+| Privacy-conscious escalation | Secret redaction, local queueing, thresholds, and asynchronous webhook delivery | Enables human oversight without placing notification latency in the command path |
+| Operational visibility | Prometheus metrics and a provisioned Grafana dashboard | Exposes decision volume, latency, posture, sources, and report backlog |
+| Protected integration API | OWASP CRS WAF, backend network isolation, bearer-token ingestion, and bounded requests | Reduces attack surface for the security signals that influence policy |
+| Repeatable deployment | Docker Compose, Terraform, and Ansible | Makes the POC reproducible for labs, demos, and controlled evaluations |
+
+## Where it can be used
+
+The wrapper is the demonstration surface; the policy model can sit at any trusted point that owns process creation or privileged actions.
+
+| Environment | Example use |
+|---|---|
+| AI coding agents | Evaluate every shell/tool call against the user's requested task before execution |
+| Developer workstations | Review destructive commands, force pushes, package publication, and risky download-to-shell pipelines |
+| Privileged access workstations | Increase scrutiny for root or administrator actions and unusual operational sequences |
+| CI/CD systems | Gate deploy, publish, infrastructure-apply, and rollback commands using pipeline and security context |
+| Server administration | Wrap SSH command brokers, remote-management agents, or endpoint services that create processes |
+| Kubernetes and cloud operations | Add intent, scope, environment, and incident posture to destructive control-plane operations |
+| Database operations | Require review or approval for destructive SQL and unusually broad maintenance actions |
+| Security automation | Prevent a compromised automation identity from using legitimate tools outside its expected workflow |
+| Training and purple-team labs | Demonstrate how benign tools become dangerous when purpose, sequence, privilege, and posture change |
+
+Detailed walkthroughs—including accidental deletion, compromised admin sessions, AI-agent drift, deployment protection, and incident-aware policy—are in [Use Cases and Scenarios](docs/USE_CASES.md).
+
+## What a decision looks like
+
+The same executable can receive a different outcome as context changes:
+
+| Situation | Likely result | Contributing context |
+|---|---|---|
+| Developer runs `git status` | `ALLOW` | Common read-only action |
+| Developer force-pushes reviewed history | `REVIEW` | External side effect and history rewrite |
+| Administrator deletes recovery snapshots | `BLOCK` | Destructive recovery action plus elevated privilege |
+| Agent publishes from a dirty, untested project | `REVIEW` or `BLOCK` | Publish action, Git state, missing tests, and provenance risk |
+| User transfers data after accessing secrets | `BLOCK` | Sequence risk and possible exfiltration |
+| Routine admin command during a critical EDR alert | Stricter than normal | Privilege combined with correlated endpoint posture |
+
+Every result includes named reasons and score contributions. The intent is not to make an opaque model the final authority; it is to create an auditable policy decision that can include deterministic rules, cached analytical signals, and human review.
 
 ## Highlights
 
@@ -280,6 +344,17 @@ Version **0.4.0** is a research-quality proof of concept. Important production w
 - Add explicit feed-health policy with fail-open, fail-closed, and review-only modes.
 - Evaluate anomaly quality against representative benign and adversarial datasets.
 - Add durable encrypted storage and enterprise identity for reports and policy administration.
+
+### What this POC proves today
+
+- A useful decision can be produced without placing network or model calls in the execution hot path.
+- Legitimate tools can be evaluated by purpose, sequence, privilege, scope, project state, and external posture—not only by binary reputation.
+- AV, EDR, SIEM, WAF, audit, reporting, and user-context signals can be normalized around a single pre-execution decision.
+- The decision can remain explainable enough for testing, policy tuning, and human review.
+
+### Path toward production
+
+The next stage is a protected, persistent command broker with shell-specific parsing, resolved resource targets, signed policies, enterprise identity, approval workflows, tamper-resistant storage, and measured false-positive/false-negative performance. See the [Project Vision](docs/PROJECT_VISION.md#roadmap-from-poc-to-production) for the proposed phases and success criteria.
 
 ## Responsible use
 
