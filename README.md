@@ -287,7 +287,7 @@ This project observes commands and can generate workplace security reports. Depl
 
 ## Contributing
 
-Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md), review the [Security Policy](SECURITY.md), and use the provided issue templates. By participating, you agree to the [Code of Conduct](CODE_OF_CONDUCT.md).
+Contributions are welcome. Read [CONTRIBUTING.md](CONTRIBUTING.md), review the [Security Policy](SECURITY.md), and use the provided issue templates.
 
 ## License
 
