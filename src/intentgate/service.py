@@ -19,6 +19,15 @@ from .audit import record
 from .behavior import assess_anomaly
 from .catalog import DESTRUCTIVE_ACTIONS
 from .context import HISTORY_FILE, collect_context
+from .deployments import (
+    create_deployment,
+    create_discovery_session,
+    inventory,
+    list_deployments,
+    next_job,
+    register_endpoint,
+    update_job,
+)
 from .engine import assess
 from .integrations import ingest, read_posture, source_postures
 from .model_advisory import model_status, request_model_advisory
@@ -26,6 +35,7 @@ from .models import Decision
 from .policy import load_policy, save_policy
 from .reporting import pending_report_count
 from .reviews import create_review, decide_review, list_reviews
+from .security_policies import list_security_policies, save_security_policy
 from .trust_controls import apply_zero_trust, load_trust_controls, save_trust_controls
 
 
@@ -216,7 +226,11 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(payload)
             return
-        if parsed.path in {"/v1/audit", "/v1/reviews", "/v1/policy", "/v1/model", "/v1/trust-controls"} and not self._authorized():
+        protected = {
+            "/v1/audit", "/v1/reviews", "/v1/policy", "/v1/model", "/v1/trust-controls",
+            "/v1/endpoints", "/v1/deployments", "/v1/deployment-jobs/next", "/v1/security-policies",
+        }
+        if parsed.path in protected and not self._authorized():
             self._json(HTTPStatus.UNAUTHORIZED, {"error": "unauthorized"})
             return
         if parsed.path == "/v1/audit":
@@ -250,13 +264,36 @@ class Handler(BaseHTTPRequestHandler):
         if parsed.path == "/v1/trust-controls":
             self._json(HTTPStatus.OK, load_trust_controls())
             return
+        if parsed.path == "/v1/security-policies":
+            self._json(HTTPStatus.OK, list_security_policies())
+            return
+        if parsed.path == "/v1/endpoints":
+            self._json(HTTPStatus.OK, inventory())
+            return
+        if parsed.path == "/v1/deployments":
+            query = parse_qs(parsed.query)
+            try:
+                limit = max(1, min(int(query.get("limit", ["50"])[0]), 250))
+            except ValueError:
+                limit = 50
+            self._json(HTTPStatus.OK, {"deployments": list_deployments(limit)})
+            return
+        if parsed.path == "/v1/deployment-jobs/next":
+            endpoint_id = parse_qs(parsed.query).get("endpoint_id", [""])[0]
+            self._json(HTTPStatus.OK, {"job": next_job(endpoint_id)})
+            return
         self._json(HTTPStatus.NOT_FOUND, {"error": "not found"})
 
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
-        known = parsed.path in {"/v1/signals", "/v1/events", "/v1/assess", "/v1/model-assess", "/v1/policy", "/v1/trust-controls"}
+        known = parsed.path in {
+            "/v1/signals", "/v1/events", "/v1/assess", "/v1/model-assess", "/v1/policy",
+            "/v1/trust-controls", "/v1/endpoints/register", "/v1/discovery-sessions", "/v1/deployments",
+            "/v1/security-policies",
+        }
         review_match = re.fullmatch(r"/v1/reviews/([a-f0-9]{12})", parsed.path)
-        if not known and review_match is None:
+        job_match = re.fullmatch(r"/v1/deployment-jobs/([a-f0-9]{12})", parsed.path)
+        if not known and review_match is None and job_match is None:
             self._json(HTTPStatus.NOT_FOUND, {"error": "not found"})
             return
         if not self._authorized():
@@ -292,6 +329,22 @@ class Handler(BaseHTTPRequestHandler):
                 controls = save_trust_controls(body)
                 self._json(HTTPStatus.OK, controls)
                 return
+            if parsed.path == "/v1/security-policies":
+                policy = save_security_policy(body)
+                self._json(HTTPStatus.OK, policy)
+                return
+            if parsed.path == "/v1/endpoints/register":
+                endpoint = register_endpoint(body)
+                self._json(HTTPStatus.OK, endpoint)
+                return
+            if parsed.path == "/v1/discovery-sessions":
+                session = create_discovery_session(body)
+                self._json(HTTPStatus.OK, session)
+                return
+            if parsed.path == "/v1/deployments":
+                deployment = create_deployment(body)
+                self._json(HTTPStatus.ACCEPTED, deployment)
+                return
             if review_match is not None:
                 if not isinstance(body, dict):
                     raise ValueError("payload must be an object")
@@ -300,6 +353,13 @@ class Handler(BaseHTTPRequestHandler):
                 )
                 if selected is None:
                     self._json(HTTPStatus.NOT_FOUND, {"error": "review not found"})
+                else:
+                    self._json(HTTPStatus.OK, selected)
+                return
+            if job_match is not None:
+                selected = update_job(job_match.group(1), body)
+                if selected is None:
+                    self._json(HTTPStatus.NOT_FOUND, {"error": "deployment job not found"})
                 else:
                     self._json(HTTPStatus.OK, selected)
                 return

@@ -127,6 +127,62 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(detailed["endpoint_name"], "DEV-WS-042")
         self.assertTrue(detailed["signal_details"])
 
+    def test_fleet_discovery_and_controlled_deployment(self):
+        token = "synthetic-admin-token"
+        with tempfile.TemporaryDirectory() as directory, patch.dict(
+            os.environ, {"UIG_STATE_DIR": directory, "UIG_INGEST_TOKEN": token}
+        ):
+            server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            base = f"http://127.0.0.1:{server.server_port}"
+            try:
+                inventory = json.loads(self._request(f"{base}/v1/endpoints", token).read())
+                security_policies = json.loads(self._request(f"{base}/v1/security-policies", token).read())
+                updated_dlp = json.loads(self._request(
+                    f"{base}/v1/security-policies", token, "POST",
+                    {"id": "data-loss-prevention", "enabled": True, "enforcement_mode": "enforce", "assigned_groups": ["finance", "high-value"]},
+                ).read())
+                discovery = json.loads(self._request(
+                    f"{base}/v1/discovery-sessions", token, "POST", {"requested_by": "test-admin"}
+                ).read())
+                planned = json.loads(self._request(
+                    f"{base}/v1/deployments", token, "POST",
+                    {"security_group": "engineering", "version": "0.4.0", "execute": False},
+                ).read())
+                queued = json.loads(self._request(
+                    f"{base}/v1/deployments", token, "POST",
+                    {"security_group": "engineering", "version": "0.4.0", "execute": True},
+                ).read())
+                job = json.loads(self._request(
+                    f"{base}/v1/deployment-jobs/next?endpoint_id=dev-ws-042", token
+                ).read())["job"]
+                completed = json.loads(self._request(
+                    f"{base}/v1/deployment-jobs/{job['id']}", token, "POST",
+                    {"status": "succeeded", "detail": "package installed"},
+                ).read())
+                deployments = json.loads(self._request(f"{base}/v1/deployments", token).read())
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=2)
+        self.assertEqual(inventory["summary"]["total"], 8)
+        self.assertGreaterEqual(inventory["summary"]["groups"], 8)
+        self.assertEqual(security_policies["summary"]["domains"], 5)
+        self.assertEqual(security_policies["summary"]["known_exploited_cves"], 2)
+        self.assertEqual(updated_dlp["enforcement_mode"], "enforce")
+        self.assertEqual(updated_dlp["assigned_groups"], ["finance", "high-value"])
+        self.assertEqual(updated_dlp["covered_endpoint_count"], 1)
+        self.assertEqual(discovery["status"], "completed")
+        self.assertEqual(discovery["endpoint_count"], 8)
+        self.assertEqual(planned["status"], "planned")
+        self.assertEqual(planned["matched_endpoints"], 3)
+        self.assertEqual(queued["status"], "queued")
+        self.assertTrue(all(item["manifest"]["action"] == "install-or-upgrade-intentgate" for item in queued["jobs"]))
+        self.assertNotIn("command", queued["jobs"][0]["manifest"])
+        self.assertEqual(completed["status"], "succeeded")
+        self.assertEqual(len(deployments["deployments"]), 2)
+
 
 if __name__ == "__main__":
     unittest.main()

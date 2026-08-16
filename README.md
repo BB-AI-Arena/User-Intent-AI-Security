@@ -71,6 +71,7 @@ This project is intended to help teams investigate a missing security layer betw
 | Pluggable model advisor | OpenAI Responses API, OpenAI-compatible endpoints, or a generic model gateway webhook | Adds an independent structured intent recommendation without making a model the enforcement authority |
 | Protected integration API | OWASP CRS WAF, backend network isolation, bearer-token ingestion, and bounded requests | Reduces attack surface for the security signals that influence policy |
 | Repeatable deployment | Docker Compose, Terraform, and Ansible | Makes the POC reproducible for labs, demos, and controlled evaluations |
+| Fleet administration | Endpoint inventory, security-group discovery, deployment plans, and agent-pull jobs | Demonstrates controlled network distribution without exposing arbitrary remote shell execution |
 
 ## Where it can be used
 
@@ -214,6 +215,8 @@ intentgate: BLOCK risk=100
 | `uig-service` | Start signal-ingestion and metrics endpoints |
 | `uig-collector config/integrations.json` | Poll configured security sources |
 | `uig-notifier` | Deliver queued manager risk reports |
+| `uig-admin discover` | Snapshot enrolled endpoints and security groups over the authenticated API |
+| `uig-admin deploy --group engineering --version 0.4.0 --execute` | Queue the fixed install manifest to a discovered security group |
 
 Exit codes are `0` for success, `2` for a non-allow dry run, `125` for review not approved, `126` for a blocked command, and `127` when the executable is missing.
 
@@ -300,8 +303,18 @@ Use **Set API token** in the console to enter the configured bearer token. The t
 - Versioned, locally persisted review and block thresholds
 - Versioned zero-trust step-up controls and a micro-segmentation flow designer
 - An inspectable destructive-action rule catalog
+- Fleet discovery with endpoint, platform, security-group, online, and installed-version coverage
+- Dry-run and queued deployment waves for a fixed Intent Gate installation manifest
+- Endpoint security policy coverage for antivirus, malware prevention, DLP, behavior monitoring, and vulnerability/CVE scanning
+- A group-oriented inventory explorer showing policy assignments and every endpoint in each security group
 
-The console is intentionally **assessment-only**. Approving a review records human authorization but never launches the command from the browser. A trusted command broker remains the required production execution boundary.
+The Command Lab and review workflow are intentionally **assessment-only**. Approving a command review records human authorization but never launches that command from the browser. Fleet Admin can separately queue only the fixed software-install manifest; a trusted endpoint agent remains the required deployment execution boundary.
+
+### Fleet Admin
+
+The **Fleet Admin** section discovers enrolled endpoints and security groups, shows agent coverage, previews the equivalent `uig-admin` network command, and plans or queues deployment waves. Discovery is based on registered inventory and heartbeats rather than blind network scanning. Deployment jobs use a fixed `install-or-upgrade-intentgate` manifest and an agent-pull transport; arbitrary remote commands are not accepted.
+
+For command examples, endpoint-agent API routes, safety properties, and production requirements, see [Fleet Administration](docs/FLEET_ADMIN.md).
 
 HTTP assessments use a standard `console-operator` execution context by default rather than inheriting the container service account's root identity. A trusted broker can submit an explicit `execution_context` containing the originating user and privilege level; production enforcement must authenticate that context rather than accepting it directly from an untrusted client.
 
