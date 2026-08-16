@@ -21,7 +21,9 @@
         <a class="nav-link" href="#audit"><span>04</span>Audit Trail</a>
         <a class="nav-link" href="#policy"><span>05</span>Policy</a>
         <a class="nav-link" href="#trust-controls"><span>06</span>Trust Controls</a>
-        <a class="nav-link" href="#model-advisor"><span>07</span>AI Advisor</a>
+        <a class="nav-link" href="#admin"><span>07</span>Fleet Admin</a>
+        <a class="nav-link" href="#inventory"><span>08</span>Inventory</a>
+        <a class="nav-link" href="#model-advisor"><span>09</span>AI Advisor</a>
       </nav>
       <div class="sidebar-foot">
         <span class="status-dot"></span>
@@ -63,8 +65,15 @@
             <div>
               <p class="eyebrow">SECURITY INTELLIGENCE FABRIC / LIVE</p>
               <h2 id="fabric-title">AI-assisted. Behavior-aware. Zero trust.</h2>
+              <p id="attention-summary" class="fabric-summary">Prioritizing the conditions that need an operator decision.</p>
             </div>
             <div class="live-chip"><i></i> MONITORING</div>
+          </div>
+          <div class="attention-board" aria-label="Priority security actions">
+            <div class="attention-board-label"><span>ACTION CENTER</span><strong>What needs attention now</strong></div>
+            <button type="button" class="attention-action critical" data-investigate="high-risk"><span>HIGH-RISK OUTLIERS</span><strong id="priority-high-risk">0</strong><small>Open scored evidence →</small></button>
+            <button type="button" class="attention-action warning" data-investigate="trust-gap"><span>TRUST GAPS</span><strong id="priority-trust-gaps">0</strong><small>Find missing context →</small></button>
+            <a class="attention-action review" href="#reviews"><span>PENDING REVIEWS</span><strong id="priority-reviews">0</strong><small>Make a human decision →</small></a>
           </div>
           <div class="fabric-body">
             <div class="ai-core-wrap">
@@ -85,6 +94,7 @@
                 <p><span>OBSERVATION</span><b id="behavior-summary">Building a behavioral baseline.</b></p>
                 <p><span>TOP OUTLIER</span><b id="behavior-outlier">Not enough evidence yet</b></p>
               </div>
+              <div class="next-action"><span>NEXT BEST ACTION</span><b id="behavior-recommendation">Validate the highest-deviation sequence with its owner.</b></div>
               <button class="capability-action" type="button" data-investigate="behavior">Investigate anomalies <b>→</b></button>
             </div>
             <div class="capability-card">
@@ -95,6 +105,7 @@
                 <p><span>OBSERVATION</span><b id="ml-observation">Collecting representative command families.</b></p>
               </div>
               <div class="confidence-line"><span id="ml-progress"></span></div>
+              <div class="next-action"><span>NEXT BEST ACTION</span><b id="ml-recommendation">Label high-risk outliers to improve baseline precision.</b></div>
               <button class="capability-action" type="button" data-investigate="high-risk">Review high-risk outliers <b>→</b></button>
             </div>
             <div class="capability-card">
@@ -105,6 +116,7 @@
                 <p><span>OBSERVATION</span><b id="micro-observation">No pending topology changes.</b></p>
               </div>
               <div class="segment-map" aria-label="Five isolated network zones"><i>EDGE</i><span></span><i>APP</i><span></span><i>OBS</i><span></span><i>MGMT</i><span></span><i>OUT</i></div>
+              <div class="next-action"><span>NEXT BEST ACTION</span><b id="micro-recommendation">Review denied-flow telemetry before changing paths.</b></div>
               <a class="capability-action" href="#trust-controls">Edit network paths <b>→</b></a>
             </div>
             <div class="capability-card">
@@ -115,6 +127,7 @@
                 <p><span>TRUST GAPS</span><b id="trust-gaps">Analyzing recent decisions.</b></p>
               </div>
               <div class="trust-chain"><span>IDENTITY</span><b>→</b><span>INTENT</span><b>→</b><span>POLICY</span><b>→</b><span>AUDIT</span></div>
+              <div class="next-action"><span>NEXT BEST ACTION</span><b id="trust-recommendation">Restore identity, endpoint, and intent coverage.</b></div>
               <button class="capability-action" type="button" data-investigate="trust-gap">Investigate trust gaps <b>→</b></button>
             </div>
           </div>
@@ -161,15 +174,29 @@
           <button class="text-button" id="refresh-audit" type="button">Refresh ↻</button>
         </div>
         <div id="audit-filter-bar" class="audit-filter-bar" hidden><div><span>ACTIVE INVESTIGATION</span><strong id="audit-filter-label">Filtered evidence</strong></div><button id="clear-audit-filter" type="button">Clear filter ×</button></div>
-        <div class="table-wrap">
+        <div class="audit-page-tools">
+          <div><strong id="audit-range">0 events</strong><span>Newest decisions first</span></div>
+          <label for="audit-page-size">Rows per page <select id="audit-page-size"><option value="10">10</option><option value="20">20</option><option value="50">50</option></select></label>
+        </div>
+        <div class="table-wrap audit-table-wrap">
           <table>
             <thead><tr><th>Time</th><th>Decision</th><th>User</th><th>Endpoint</th><th>Command</th><th>Risk</th></tr></thead>
             <tbody id="audit-body"><tr><td colspan="6" class="empty-copy">No assessments recorded.</td></tr></tbody>
           </table>
         </div>
+        <nav class="audit-pagination" aria-label="Audit trail pages">
+          <button id="audit-previous" type="button">← Previous</button>
+          <span id="audit-page-label">Page 1 of 1</span>
+          <button id="audit-next" type="button">Next →</button>
+        </nav>
       </section>
 
       <section id="policy" class="section policy-grid">
+        <article class="panel security-policy-panel">
+          <div class="section-heading"><div><p class="eyebrow">DEFENSE POLICY CATALOG</p><h2>Endpoint security policies</h2><p>See enforcement, rules, assigned security groups, endpoint coverage, and current vulnerability intelligence.</p></div><span id="security-policy-summary" class="version-tag">LOADING</span></div>
+          <div id="security-policy-cards" class="security-policy-cards"><p class="empty-copy">Loading endpoint security policies.</p></div>
+          <p id="cve-intelligence-notice" class="policy-intelligence-notice"></p>
+        </article>
         <article class="panel">
           <div class="section-heading"><div><p class="eyebrow">ACTIVE POLICY</p><h2>Decision thresholds</h2></div><span id="policy-version" class="version-tag">v1</span></div>
           <form id="policy-form">
@@ -242,6 +269,65 @@
           </article>
           <div class="trust-save-bar"><div><strong id="trust-save-state">Configuration synchronized</strong><small>Authenticated control-plane policy stored locally.</small></div><button class="primary-button" type="submit"><span>Save controls</span><b>→</b></button></div>
         </form>
+      </section>
+
+      <section id="admin" class="section admin-panel">
+        <div class="admin-heading">
+          <div><p class="eyebrow">NETWORK DEPLOYMENT CONTROL PLANE</p><h2>Fleet administration</h2><p>Discover enrolled assets, inspect security-group coverage, and distribute a fixed Intent Gate installation manifest.</p></div>
+          <div class="admin-actions"><span class="control-live-dot"><i></i> ORCHESTRATOR ONLINE</span><button id="run-discovery" class="secondary-button" type="button">Run discovery session</button></div>
+        </div>
+        <div class="admin-stat-grid">
+          <article><small>DISCOVERED ENDPOINTS</small><strong id="admin-total">0</strong><span>inventory records</span></article>
+          <article><small>ONLINE NOW</small><strong id="admin-online">0</strong><span>agent heartbeat</span></article>
+          <article><small>MANAGED</small><strong id="admin-managed">0</strong><span>Intent Gate installed</span></article>
+          <article><small>SECURITY GROUPS</small><strong id="admin-groups">0</strong><span>deployment selectors</span></article>
+          <article><small>QUEUED JOBS</small><strong id="admin-queued">0</strong><span>agent-pull transport</span></article>
+        </div>
+
+        <div class="admin-layout">
+          <article class="panel discovery-card">
+            <div class="section-heading"><div><p class="eyebrow">LATEST DISCOVERY</p><h2>Endpoints &amp; security groups</h2></div><span id="discovery-status" class="version-tag">NOT RUN</span></div>
+            <div id="security-group-list" class="security-group-list"><p class="empty-copy">Connect to load security groups.</p></div>
+            <div class="table-wrap endpoint-table-wrap">
+              <table>
+                <thead><tr><th>Endpoint</th><th>Address</th><th>OS</th><th>Groups</th><th>Agent</th><th>Status</th></tr></thead>
+                <tbody id="endpoint-body"><tr><td colspan="6" class="empty-copy">No endpoints discovered.</td></tr></tbody>
+              </table>
+            </div>
+          </article>
+
+          <article class="panel deployment-card">
+            <div class="section-heading"><div><p class="eyebrow">CONTROLLED SOFTWARE DISTRIBUTION</p><h2>Deploy Intent Gate</h2></div><span class="safe-label">FIXED MANIFEST</span></div>
+            <form id="deployment-form">
+              <label for="deploy-group">Target security group</label>
+              <select id="deploy-group" required><option value="">Select a discovered group</option></select>
+              <div class="form-row deployment-fields">
+                <div><label for="deploy-version">Release version</label><input id="deploy-version" value="0.4.0" pattern="[0-9A-Za-z][0-9A-Za-z.+-]{0,39}" required></div>
+                <div><label for="deploy-requestor">Change owner</label><input id="deploy-requestor" value="console-admin" maxlength="120" required></div>
+              </div>
+              <p class="config-caption">NETWORK COMMAND PREVIEW</p>
+              <code id="network-command-preview" class="network-command">uig-admin deploy --server http://intentgate.example:8787 --group &lt;group&gt; --version 0.4.0</code>
+              <p class="deployment-guard"><b>Deployment guard:</b> Plan validates scope without queueing work. Deploy creates auditable agent-pull jobs; it never accepts arbitrary shell commands.</p>
+              <div class="deployment-buttons"><button class="secondary-button" type="submit" value="plan">Plan deployment</button><button class="primary-button" type="submit" value="execute"><span>Queue deployment</span><b>→</b></button></div>
+            </form>
+            <div class="deployment-history-heading"><p class="eyebrow">RECENT WAVES</p><button id="refresh-deployments" class="text-button" type="button">Refresh ↻</button></div>
+            <div id="deployment-list" class="deployment-list"><p class="empty-copy">No deployments have been planned.</p></div>
+          </article>
+        </div>
+      </section>
+
+      <section id="inventory" class="section panel inventory-panel">
+        <div class="section-heading inventory-heading">
+          <div><p class="eyebrow">ASSET &amp; IDENTITY INVENTORY</p><h2>Security groups and endpoints</h2><p>Explore policy targets by group and inspect every member endpoint, platform, agent version, and connectivity state.</p></div>
+          <div class="inventory-search"><label for="inventory-search">Filter inventory</label><input id="inventory-search" type="search" placeholder="Group or endpoint name"></div>
+        </div>
+        <div class="inventory-summary-grid">
+          <div><small>GROUPS</small><strong id="inventory-group-count">0</strong></div>
+          <div><small>ENDPOINTS</small><strong id="inventory-endpoint-count">0</strong></div>
+          <div><small>ONLINE</small><strong id="inventory-online-count">0</strong></div>
+          <div><small>MANAGED</small><strong id="inventory-managed-count">0</strong></div>
+        </div>
+        <div id="inventory-group-grid" class="inventory-group-grid"><p class="empty-copy">Connect to load group inventory.</p></div>
       </section>
 
       <section id="model-advisor" class="section panel model-panel">

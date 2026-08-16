@@ -18,6 +18,7 @@ uig-scan = "intentgate.provenance:main"
 uig-service = "intentgate.service:main"
 uig-collector = "intentgate.collector:main"
 uig-notifier = "intentgate.notifier:main"
+uig-admin = "intentgate.admin_cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

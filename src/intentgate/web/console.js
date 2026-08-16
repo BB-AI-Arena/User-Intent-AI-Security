@@ -2,10 +2,15 @@ const isLoopbackDemo = ["127.0.0.1", "localhost", "::1"].includes(window.locatio
 const state = {
   token: sessionStorage.getItem("uig-token") || (isLoopbackDemo ? "local-dev-change-me" : ""),
   policy: null,
+  securityPolicies: null,
   model: null,
   trustControls: null,
+  inventory: null,
+  deployments: [],
   auditEvents: [],
   auditFilter: null,
+  auditPage: 1,
+  auditPageSize: 10,
 };
 const $ = (selector) => document.querySelector(selector);
 const $$ = (selector) => [...document.querySelectorAll(selector)];
@@ -64,6 +69,12 @@ function renderIntelligenceFabric(events) {
   const controls = state.trustControls;
   const zero = controls?.zero_trust;
   const micro = controls?.microsegmentation;
+  const urgentConditions = highRisk.length || trustGaps.length || burst.length >= 3;
+  $("#priority-high-risk").textContent = highRisk.length;
+  $("#priority-trust-gaps").textContent = trustGaps.length;
+  $("#attention-summary").textContent = urgentConditions
+    ? `${highRisk.length} high-risk actions and ${trustGaps.length} trust-context gaps need triage. Start with scored evidence.`
+    : "No urgent conditions detected. Continue monitoring the live decision stream.";
   $("#fabric-event-count").textContent = `${events.length} EVENTS`;
   $("#ml-sample-count").textContent = events.length;
   $("#ml-coverage").textContent = `${maturity}%`;
@@ -85,6 +96,11 @@ function renderIntelligenceFabric(events) {
   $("#behavior-outlier").textContent = topAnomaly
     ? `${topAnomaly.command} · ${topAnomaly.user_name || "unknown user"} · deviation ${Number(topAnomaly.anomaly_score || 0)}/40`
     : "No behavioral outlier in the current window.";
+  $("#behavior-recommendation").textContent = burst.length >= 3
+    ? `Validate the ${burst.length}-command mutation burst and temporarily step up the actor if unexpected.`
+    : topAnomaly
+      ? `Confirm whether ${topAnomaly.user_name || "the operator"} expected the highest-deviation command sequence.`
+      : "Keep collecting representative behavior before tightening anomaly policy.";
   $("#micro-headline").textContent = `${micro?.enabled_zones?.length ?? 5} zones · default ${micro?.default_action || "deny"}`;
   $("#micro-flows").textContent = `${micro?.allowed_flows?.length ?? 5} explicitly allowed service paths`;
   const pendingTopology = micro?.deployment_status === "redeploy-required";
@@ -93,6 +109,11 @@ function renderIntelligenceFabric(events) {
   $("#micro-observation").textContent = pendingTopology
     ? "A saved topology change is waiting for Docker redeployment."
     : `${micro?.log_denied === false ? "Denied-flow logging is disabled." : "Denied flows are logged; no topology drift is pending."}`;
+  $("#micro-recommendation").textContent = pendingTopology
+    ? "Review the staged path changes and schedule a controlled redeployment."
+    : micro?.log_denied === false
+      ? "Enable denied-flow logging before changing the allowed-path policy."
+      : "Review denied-flow telemetry before adding any new service path.";
   $("#trust-headline").textContent = `${coverage}% actor + endpoint coverage`;
   $("#trust-policy").textContent = zero
     ? `${zero.enforcement_mode} mode · step-up at ${zero.step_up_threshold}/100`
@@ -102,6 +123,12 @@ function renderIntelligenceFabric(events) {
     : "No identity, endpoint, or intent gaps in the current window.";
   $("#trust-state").textContent = trustGaps.length ? "GAPS FOUND" : "VERIFIED";
   $("#trust-state").classList.toggle("alert", trustGaps.length > 0);
+  $("#trust-recommendation").textContent = trustGaps.length
+    ? `Enrich ${trustGaps.length} records with identity, endpoint, or declared intent before enforce mode.`
+    : "Trust context is complete; review step-up thresholds for least privilege.";
+  $("#ml-recommendation").textContent = highRisk.length
+    ? `Label the ${highRisk.length} high-risk outliers as expected or suspicious to improve precision.`
+    : maturity < 80 ? "Collect more representative command families before relying on rarity." : "Baseline coverage is mature; review drift weekly.";
   const visible = events.slice(0, 5);
   $("#fabric-event-stream").innerHTML = visible.length ? visible.map((item) => `<div class="stream-event ${escapeHtml(item.decision)}">
     <time>${new Date(Number(item.timestamp) * 1000).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}</time>
@@ -213,11 +240,12 @@ function getFilteredAuditEvents() {
       : state.auditFilter === "trust-gap"
         ? events.filter((item) => !item.purpose || !item.user_name || !item.endpoint_name || item.endpoint_name === "unknown-endpoint")
         : events;
-  return filtered.slice(0, 100);
+  return filtered;
 }
 
 function setAuditFilter(filter) {
   state.auditFilter = filter;
+  state.auditPage = 1;
   const labels = {
     behavior: "Behavioral anomalies and sequence deviations",
     "high-risk": "High-risk policy outliers (80+)",
@@ -232,10 +260,18 @@ function setAuditFilter(filter) {
 
 function renderAudit(events) {
   const body = $("#audit-body");
-  if (!events.length) { body.innerHTML = '<tr><td colspan="6" class="empty-copy">No assessments recorded.</td></tr>'; return; }
-  body.innerHTML = events.map((item, index) => {
+  const pageCount = Math.max(1, Math.ceil(events.length / state.auditPageSize));
+  state.auditPage = Math.max(1, Math.min(state.auditPage, pageCount));
+  const start = (state.auditPage - 1) * state.auditPageSize;
+  const visible = events.slice(start, start + state.auditPageSize);
+  $("#audit-range").textContent = events.length ? `Showing ${start + 1}–${start + visible.length} of ${events.length}` : "0 events";
+  $("#audit-page-label").textContent = `Page ${state.auditPage} of ${pageCount}`;
+  $("#audit-previous").disabled = state.auditPage <= 1;
+  $("#audit-next").disabled = state.auditPage >= pageCount;
+  if (!visible.length) { body.innerHTML = '<tr><td colspan="6" class="empty-copy">No assessments recorded.</td></tr>'; return; }
+  body.innerHTML = visible.map((item, index) => {
     const risk = Math.max(0, Math.min(100, Number(item.risk_score || 0)));
-    const detailId = `audit-detail-${index}`;
+    const detailId = `audit-detail-${start + index}`;
     const evidence = Array.isArray(item.signal_details) && item.signal_details.length
       ? item.signal_details
       : (item.signals || []).map((name) => ({ name, score: null, detail: "Signal recorded before detailed evidence capture was enabled." }));
@@ -267,6 +303,12 @@ function renderAudit(events) {
   }).join("");
 }
 
+function changeAuditPage(delta) {
+  state.auditPage += delta;
+  renderAudit(getFilteredAuditEvents());
+  $("#audit").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
 function toggleAuditDetail(row) {
   const detail = document.getElementById(row.dataset.auditToggle);
   if (!detail) return;
@@ -284,6 +326,7 @@ async function loadAudit() {
 function renderReviews(reviews) {
   const pending = reviews.filter((item) => item.status === "pending");
   $("#review-badge").textContent = pending.length;
+  $("#priority-reviews").textContent = pending.length;
   const list = $("#review-list");
   if (!reviews.length) { list.innerHTML = '<p class="empty-copy">No commands are waiting for review.</p>'; return; }
   list.innerHTML = reviews.slice(0, 30).map((item) => `<article class="review-item ${item.status !== "pending" ? "resolved" : ""}">
@@ -408,6 +451,145 @@ async function loadTrustControls() {
   catch (error) { if (state.token) toast(error.message); }
 }
 
+function renderSecurityPolicies(data) {
+  state.securityPolicies = data;
+  const summary = data.summary || {};
+  $("#security-policy-summary").textContent = `${summary.active || 0}/${summary.domains || 0} ACTIVE · ${summary.known_exploited_cves || 0} EXPLOITED CVEs`;
+  $("#cve-intelligence-notice").textContent = data.intelligence_notice || "";
+  $("#security-policy-cards").innerHTML = (data.policies || []).map((policy) => {
+    const coverage = policy.total_endpoint_count ? Math.round(policy.covered_endpoint_count / policy.total_endpoint_count * 100) : 0;
+    const groups = (policy.assigned_groups || []).map((group) => `<button type="button" data-inventory-group="${escapeHtml(group)}">${escapeHtml(group)}</button>`).join("");
+    const endpoints = (policy.covered_endpoints || []).map((endpoint) => `<li><span class="endpoint-state ${escapeHtml(endpoint.status)}"><i></i>${escapeHtml(endpoint.hostname)}</span><small>${endpoint.agent_version ? `agent v${escapeHtml(endpoint.agent_version)}` : "agent not installed"}</small></li>`).join("");
+    const cves = (policy.cve_alerts || []).map((alert) => `<div class="policy-cve-alert ${escapeHtml(alert.severity)}"><div><strong>${escapeHtml(alert.id)}</strong><span>${alert.known_exploited ? "KNOWN EXPLOITED" : "INVESTIGATE"}</span></div><p>${escapeHtml(alert.summary)}</p><small>${alert.affected_endpoints} affected · ${escapeHtml(alert.status)}</small></div>`).join("");
+    return `<article class="security-policy-card ${policy.enabled ? "active" : "disabled"} ${policy.cve_alerts?.length ? "has-cve" : ""}">
+      <div class="security-policy-head"><span>${escapeHtml(policy.domain)}</span><div><small>${policy.enabled ? "ACTIVE" : "DISABLED"}</small><b>${escapeHtml(policy.enforcement_mode).toUpperCase()}</b></div></div>
+      <h3>${escapeHtml(policy.name)}</h3><p>${escapeHtml(policy.description)}</p>
+      <div class="policy-coverage"><div><strong>${policy.covered_endpoint_count}/${policy.total_endpoint_count}</strong><span>ENDPOINTS COVERED</span></div><div><strong>${policy.online_endpoint_count}</strong><span>ONLINE</span></div><b>${coverage}%</b></div>
+      <div class="policy-coverage-track"><span style="width:${coverage}%"></span></div>
+      <div class="policy-rule-list">${(policy.rules || []).map((rule) => `<span>✓ ${escapeHtml(rule)}</span>`).join("")}</div>
+      <p class="config-caption">ASSIGNED SECURITY GROUPS</p><div class="policy-group-list">${groups}</div>
+      ${cves ? `<div class="policy-cve-list"><p class="config-caption">MALICIOUS CVE INTELLIGENCE</p>${cves}</div>` : ""}
+      <details class="policy-endpoints"><summary>View ${policy.covered_endpoint_count} covered endpoints</summary><ul>${endpoints}</ul></details>
+    </article>`;
+  }).join("");
+  if (state.inventory) renderGroupInventory(state.inventory, $("#inventory-search")?.value || "");
+}
+
+async function loadSecurityPolicies() {
+  try { renderSecurityPolicies(await api("/v1/security-policies")); }
+  catch (error) { if (state.token) toast(error.message); }
+}
+
+function updateDeploymentCommand() {
+  const group = $("#deploy-group").value || "<group>";
+  const version = $("#deploy-version").value || "0.4.0";
+  $("#network-command-preview").textContent = `uig-admin deploy --server http://intentgate.example:8787 --group ${group} --version ${version}`;
+}
+
+function renderInventory(data) {
+  state.inventory = data;
+  const summary = data.summary || {};
+  $("#admin-total").textContent = summary.total || 0;
+  $("#admin-online").textContent = summary.online || 0;
+  $("#admin-managed").textContent = summary.managed || 0;
+  $("#admin-groups").textContent = summary.groups || 0;
+  $("#admin-queued").textContent = summary.queued_jobs || 0;
+  const latest = data.latest_discovery;
+  $("#discovery-status").textContent = latest ? `${String(latest.status).toUpperCase()} · ${formatTime(latest.completed_at)}` : "INVENTORY READY";
+  const groups = data.security_groups || [];
+  $("#security-group-list").innerHTML = groups.length ? groups.map((group) => `<button type="button" data-deploy-group="${escapeHtml(group.name)}"><b>${escapeHtml(group.name)}</b><span>${group.endpoint_count} endpoints · ${group.online_count} online · ${group.managed_count} managed</span></button>`).join("") : '<p class="empty-copy">No security groups discovered.</p>';
+  const selectedGroup = $("#deploy-group").value;
+  $("#deploy-group").innerHTML = '<option value="">Select a discovered group</option>' + groups.map((group) => `<option value="${escapeHtml(group.name)}">${escapeHtml(group.name)} · ${group.endpoint_count} endpoints</option>`).join("");
+  if (groups.some((group) => group.name === selectedGroup)) $("#deploy-group").value = selectedGroup;
+  const endpoints = data.endpoints || [];
+  $("#endpoint-body").innerHTML = endpoints.length ? endpoints.map((item) => `<tr>
+    <td><strong>${escapeHtml(item.hostname)}</strong><small>${escapeHtml(item.id)}</small></td>
+    <td><code>${escapeHtml(item.ip_address)}</code></td><td>${escapeHtml(item.operating_system)}</td>
+    <td><div class="endpoint-groups">${(item.security_groups || []).map((group) => `<span>${escapeHtml(group)}</span>`).join("")}</div></td>
+    <td>${item.agent_version ? `<b>v${escapeHtml(item.agent_version)}</b>` : '<em>not installed</em>'}</td>
+    <td><span class="endpoint-state ${escapeHtml(item.status)}"><i></i>${escapeHtml(item.status)}</span></td>
+  </tr>`).join("") : '<tr><td colspan="6" class="empty-copy">No endpoints discovered.</td></tr>';
+  renderGroupInventory(data, $("#inventory-search")?.value || "");
+  updateDeploymentCommand();
+}
+
+function renderGroupInventory(data, query = "") {
+  const endpoints = data.endpoints || [];
+  const groups = data.security_groups || [];
+  const normalized = query.trim().toLowerCase();
+  $("#inventory-group-count").textContent = groups.length;
+  $("#inventory-endpoint-count").textContent = endpoints.length;
+  $("#inventory-online-count").textContent = endpoints.filter((item) => item.status === "online").length;
+  $("#inventory-managed-count").textContent = endpoints.filter((item) => item.agent_version).length;
+  const policies = state.securityPolicies?.policies || [];
+  const visible = groups.map((group) => ({
+    ...group,
+    endpoints: endpoints.filter((item) => (item.security_groups || []).includes(group.name)),
+    policies: policies.filter((policy) => (policy.assigned_groups || []).includes(group.name)),
+  })).filter((group) => !normalized || group.name.toLowerCase().includes(normalized) || group.endpoints.some((item) => `${item.hostname} ${item.id}`.toLowerCase().includes(normalized)));
+  $("#inventory-group-grid").innerHTML = visible.length ? visible.map((group) => `<article class="inventory-group-card">
+    <div class="inventory-group-head"><div><span>SECURITY GROUP</span><h3>${escapeHtml(group.name)}</h3></div><strong>${group.endpoint_count}</strong></div>
+    <div class="inventory-group-stats"><span>${group.online_count} online</span><span>${group.managed_count} managed</span><span>${group.policies.length} policies</span></div>
+    <div class="inventory-policy-tags">${group.policies.length ? group.policies.map((policy) => `<span>${escapeHtml(policy.domain)} · ${escapeHtml(policy.enforcement_mode)}</span>`).join("") : "<span>NO POLICY ASSIGNMENT</span>"}</div>
+    <ul>${group.endpoints.map((endpoint) => `<li><div><span class="endpoint-state ${escapeHtml(endpoint.status)}"><i></i>${escapeHtml(endpoint.hostname)}</span><small>${escapeHtml(endpoint.operating_system)} · ${escapeHtml(endpoint.ip_address)}</small></div><b>${endpoint.agent_version ? `v${escapeHtml(endpoint.agent_version)}` : "UNMANAGED"}</b></li>`).join("")}</ul>
+  </article>`).join("") : '<p class="empty-copy">No security groups or endpoints match this filter.</p>';
+}
+
+function openInventoryGroup(group) {
+  $("#inventory-search").value = group;
+  if (state.inventory) renderGroupInventory(state.inventory, group);
+  window.location.hash = "inventory";
+  $("#inventory").scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+async function loadInventory() {
+  try { renderInventory(await api("/v1/endpoints")); }
+  catch (error) { if (state.token) toast(error.message); }
+}
+
+function renderDeployments(deployments) {
+  state.deployments = deployments;
+  $("#deployment-list").innerHTML = deployments.length ? deployments.slice(0, 8).map((item) => {
+    const queued = (item.jobs || []).filter((job) => ["queued", "deferred"].includes(job.status)).length;
+    return `<article class="deployment-wave ${escapeHtml(item.status)}"><div><strong>${escapeHtml(item.security_group || "selected endpoints")} · v${escapeHtml(item.version)}</strong><small>${formatTime(item.created_at)} · ${escapeHtml(item.requested_by)}</small></div><span>${item.execute ? escapeHtml(item.status).toUpperCase() : "DRY-RUN PLAN"}</span><b>${item.matched_endpoints} targets${queued ? ` · ${queued} queued` : ""}</b></article>`;
+  }).join("") : '<p class="empty-copy">No deployments have been planned.</p>';
+}
+
+async function loadDeployments() {
+  try { const data = await api("/v1/deployments?limit=20"); renderDeployments(data.deployments || []); }
+  catch (error) { if (state.token) toast(error.message); }
+}
+
+async function runDiscovery() {
+  const button = $("#run-discovery");
+  button.disabled = true;
+  button.textContent = "Discovering…";
+  try {
+    const result = await api("/v1/discovery-sessions", { method: "POST", body: JSON.stringify({ requested_by: $("#deploy-requestor").value || "console-admin" }) });
+    toast(`Discovery complete: ${result.endpoint_count} endpoints across ${result.security_group_count} groups.`);
+    await loadInventory();
+  } catch (error) { toast(error.message); }
+  finally { button.disabled = false; button.textContent = "Run discovery session"; }
+}
+
+async function submitDeployment(event) {
+  event.preventDefault();
+  const execute = event.submitter?.value === "execute";
+  const payload = {
+    security_group: $("#deploy-group").value,
+    version: $("#deploy-version").value,
+    execute,
+    requested_by: $("#deploy-requestor").value,
+  };
+  event.submitter.disabled = true;
+  try {
+    const result = await api("/v1/deployments", { method: "POST", body: JSON.stringify(payload) });
+    toast(execute ? `Deployment queued to ${result.matched_endpoints} endpoints.` : `Plan validated for ${result.matched_endpoints} endpoints.`);
+    await Promise.all([loadDeployments(), loadInventory()]);
+  } catch (error) { toast(error.message); }
+  finally { event.submitter.disabled = false; }
+}
+
 async function saveTrustControls(event) {
   event.preventDefault();
   const submit = event.submitter;
@@ -455,9 +637,30 @@ function bindEvents() {
   $$("[data-investigate]").forEach((button) => button.addEventListener("click", () => setAuditFilter(button.dataset.investigate)));
   $("#clear-audit-filter").addEventListener("click", () => setAuditFilter(null));
   $("#refresh-audit").addEventListener("click", loadAudit);
+  $("#audit-previous").addEventListener("click", () => changeAuditPage(-1));
+  $("#audit-next").addEventListener("click", () => changeAuditPage(1));
+  $("#audit-page-size").addEventListener("change", (event) => {
+    state.auditPageSize = Number(event.target.value);
+    state.auditPage = 1;
+    renderAudit(getFilteredAuditEvents());
+  });
   $("#refresh-reviews").addEventListener("click", loadReviews);
   $("#policy-form").addEventListener("submit", savePolicy);
+  $("#security-policy-cards").addEventListener("click", (event) => { const group = event.target.closest("[data-inventory-group]"); if (group) openInventoryGroup(group.dataset.inventoryGroup); });
   $("#trust-controls-form").addEventListener("submit", saveTrustControls);
+  $("#run-discovery").addEventListener("click", runDiscovery);
+  $("#deployment-form").addEventListener("submit", submitDeployment);
+  $("#refresh-deployments").addEventListener("click", loadDeployments);
+  $("#deploy-group").addEventListener("change", updateDeploymentCommand);
+  $("#deploy-version").addEventListener("input", updateDeploymentCommand);
+  $("#inventory-search").addEventListener("input", (event) => { if (state.inventory) renderGroupInventory(state.inventory, event.target.value); });
+  $("#security-group-list").addEventListener("click", (event) => {
+    const selected = event.target.closest("[data-deploy-group]");
+    if (!selected) return;
+    $("#deploy-group").value = selected.dataset.deployGroup;
+    updateDeploymentCommand();
+    $("#deployment-form").scrollIntoView({ behavior: "smooth", block: "center" });
+  });
   $("#token-button").addEventListener("click", openTokenDialog);
   $("#token-form").addEventListener("submit", (event) => {
     if (event.submitter?.value === "cancel") return;
@@ -474,7 +677,7 @@ function bindEvents() {
   sections.forEach((section) => observer.observe(section));
 }
 
-async function refreshAll() { await Promise.all([loadOverview(), loadReviews(), loadPolicy(), loadModelStatus(), loadTrustControls()]); }
+async function refreshAll() { await Promise.all([loadOverview(), loadReviews(), loadPolicy(), loadSecurityPolicies(), loadModelStatus(), loadTrustControls(), loadInventory(), loadDeployments()]); }
 
 bindEvents();
 $("#token-label").textContent = state.token ? "Token configured" : "Set API token";
