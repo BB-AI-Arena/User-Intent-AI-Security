@@ -15,7 +15,7 @@
 
 **A context-aware command execution gate that asks one critical question before code runs: _does this action match the user's intent?_**
 
-[Why it matters](#why-this-project-matters) · [Capabilities](#what-the-project-can-do) · [Use cases](#where-it-can-be-used) · [Quick start](#quick-start) · [Architecture](docs/ARCHITECTURE.md) · [Security](SECURITY.md)
+[Why it matters](#why-this-project-matters) · [Capabilities](#what-the-project-can-do) · [Live POC demo](#run-the-full-poc-demo) · [Use cases](#where-it-can-be-used) · [Quick start](#quick-start) · [Architecture](docs/ARCHITECTURE.md) · [Security](SECURITY.md)
 
 </div>
 
@@ -150,6 +150,20 @@ The decision engine considers:
 6. Non-expired AV, EDR, and SIEM posture signals scoped to the device, user, or project.
 
 See [Architecture](docs/ARCHITECTURE.md) and [Threat Model](docs/THREAT_MODEL.md) for the deeper design.
+
+## Run the full POC demo
+
+Docker Desktop is the fastest way to launch the complete showcase: the operator console, AI Advisor, zero-trust and micro-segmentation controls, WAF-protected API, Prometheus, and Grafana.
+
+```powershell
+Copy-Item .env.integrations.example .env.integrations
+docker compose --env-file .env.integrations -f docker-compose.observability.yml up -d --build
+.\scripts\Seed-DemoData.ps1
+```
+
+Open the [operator console](http://127.0.0.1:8787/) and select **AI Advisor**, **Trust Controls**, or **Audit Trail**. Grafana is available at [http://127.0.0.1:3000/](http://127.0.0.1:3000/).
+
+The default advisor is an offline, presentation-ready simulation and is always labeled **Demo Simulation** in the interface. It produces structured `ALLOW`, `REVIEW`, and `BLOCK` recommendations without sending data to an external service. To use a real model, configure the ignored `.env.integrations` file as described in [Model Advisory Providers](docs/MODEL_ADVISORS.md).
 
 ## Quick start
 
