@@ -5,17 +5,68 @@ import hmac
 import json
 import os
 import re
+import shlex
+import socket
 import time
+from dataclasses import replace
 from http import HTTPStatus
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from importlib import resources
+from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from .context import HISTORY_FILE
+from .audit import record
+from .behavior import assess_anomaly
+from .catalog import DESTRUCTIVE_ACTIONS
+from .context import HISTORY_FILE, collect_context
+from .engine import assess
 from .integrations import ingest, read_posture, source_postures
+from .model_advisory import model_status, request_model_advisory
+from .models import Decision
+from .policy import load_policy, save_policy
 from .reporting import pending_report_count
+from .reviews import create_review, decide_review, list_reviews
+from .trust_controls import apply_zero_trust, load_trust_controls, save_trust_controls
 
 
 STARTED_AT = time.time()
+
+
+def _assess_payload(body: object):
+    if not isinstance(body, dict):
+        raise ValueError("payload must be an object")
+    raw_command = str(body.get("command", "")).strip()
+    argv_value = body.get("argv")
+    if isinstance(argv_value, list) and all(isinstance(item, str) for item in argv_value):
+        argv = argv_value
+    elif raw_command:
+        argv = shlex.split(raw_command, posix=os.name != "nt")
+    else:
+        raise ValueError("command or argv is required")
+    if not argv:
+        raise ValueError("command cannot be empty")
+    cwd = Path(str(body.get("cwd") or os.getcwd())).expanduser().resolve()
+    if not cwd.is_dir():
+        raise ValueError("cwd must be an existing directory")
+    purpose = str(body.get("purpose", "")).strip()[:500] or None
+    context = collect_context(argv, purpose=purpose, cwd=str(cwd))
+    execution_context = body.get("execution_context")
+    if execution_context is not None and not isinstance(execution_context, dict):
+        raise ValueError("execution_context must be an object")
+    execution_context = execution_context or {}
+    user_name = str(execution_context.get("user_name", "console-operator"))[:120]
+    anomaly = assess_anomaly(context.command, user_name=user_name)
+    context = replace(
+        context,
+        user_name=user_name,
+        endpoint_name=str(execution_context.get("endpoint_name") or socket.gethostname())[:160],
+        is_root=bool(execution_context.get("is_root", False)),
+        is_admin=bool(execution_context.get("is_admin", False)),
+        privilege_level=str(execution_context.get("privilege_level", "standard"))[:80],
+        anomaly_score=int(anomaly.get("score", 0)),
+        anomaly_details=tuple(str(item) for item in anomaly.get("details", ())),
+    )
+    return context, apply_zero_trust(context, assess(context))
 
 
 def _audit_metrics() -> tuple[dict[str, int], float, int]:
@@ -84,8 +135,49 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(payload)))
+        self.send_header("Cache-Control", "no-store")
+        self.send_header("X-Content-Type-Options", "nosniff")
         self.end_headers()
         self.wfile.write(payload)
+
+    def _asset(self, filename: str, content_type: str) -> None:
+        try:
+            payload = resources.files("intentgate").joinpath("web", filename).read_bytes()
+        except (FileNotFoundError, OSError):
+            self._json(HTTPStatus.NOT_FOUND, {"error": "not found"})
+            return
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(payload)))
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header(
+            "Content-Security-Policy",
+            "default-src 'self'; style-src 'self'; script-src 'self'; connect-src 'self'; img-src 'self' data:",
+        )
+        self.end_headers()
+        self.wfile.write(payload)
+
+    def _body(self) -> object:
+        length = int(self.headers.get("Content-Length", "0"))
+        if length > 1_048_576:
+            raise ValueError("payload exceeds 1 MiB")
+        return json.loads(self.rfile.read(length))
+
+    def _audit_events(self, limit: int) -> list[dict[str, object]]:
+        try:
+            lines = HISTORY_FILE.read_text(encoding="utf-8").splitlines()[-limit:]
+        except OSError:
+            return []
+        events = []
+        for line in reversed(lines):
+            try:
+                item = json.loads(line)
+                if isinstance(item, dict):
+                    events.append(item)
+            except json.JSONDecodeError:
+                continue
+        return events
 
     def _authorized(self) -> bool:
         expected = os.environ.get("UIG_INGEST_TOKEN", "")
@@ -96,6 +188,15 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
+        if parsed.path in {"/", "/console"}:
+            self._asset("index.html", "text/html; charset=utf-8")
+            return
+        if parsed.path == "/console.css":
+            self._asset("console.css", "text/css; charset=utf-8")
+            return
+        if parsed.path == "/console.js":
+            self._asset("console.js", "text/javascript; charset=utf-8")
+            return
         if parsed.path == "/healthz":
             self._json(HTTPStatus.OK, {"status": "ok"})
             return
@@ -115,18 +216,93 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(payload)
             return
+        if parsed.path in {"/v1/audit", "/v1/reviews", "/v1/policy", "/v1/model", "/v1/trust-controls"} and not self._authorized():
+            self._json(HTTPStatus.UNAUTHORIZED, {"error": "unauthorized"})
+            return
+        if parsed.path == "/v1/audit":
+            query = parse_qs(parsed.query)
+            try:
+                limit = max(1, min(int(query.get("limit", ["100"])[0]), 500))
+            except ValueError:
+                limit = 100
+            self._json(HTTPStatus.OK, {"events": self._audit_events(limit)})
+            return
+        if parsed.path == "/v1/reviews":
+            self._json(HTTPStatus.OK, {"reviews": list_reviews()})
+            return
+        if parsed.path == "/v1/policy":
+            policy = load_policy()
+            policy["catalog"] = [
+                {
+                    "identifier": item.identifier,
+                    "category": item.category,
+                    "score": item.score,
+                    "description": item.description,
+                    "platforms": item.platforms,
+                }
+                for item in DESTRUCTIVE_ACTIONS
+            ]
+            self._json(HTTPStatus.OK, policy)
+            return
+        if parsed.path == "/v1/model":
+            self._json(HTTPStatus.OK, model_status())
+            return
+        if parsed.path == "/v1/trust-controls":
+            self._json(HTTPStatus.OK, load_trust_controls())
+            return
         self._json(HTTPStatus.NOT_FOUND, {"error": "not found"})
 
     def do_POST(self) -> None:
-        if self.path not in {"/v1/signals", "/v1/events"}:
+        parsed = urlparse(self.path)
+        known = parsed.path in {"/v1/signals", "/v1/events", "/v1/assess", "/v1/model-assess", "/v1/policy", "/v1/trust-controls"}
+        review_match = re.fullmatch(r"/v1/reviews/([a-f0-9]{12})", parsed.path)
+        if not known and review_match is None:
             self._json(HTTPStatus.NOT_FOUND, {"error": "not found"})
             return
         if not self._authorized():
             self._json(HTTPStatus.UNAUTHORIZED, {"error": "unauthorized"})
             return
         try:
-            length = min(int(self.headers.get("Content-Length", "0")), 1_048_576)
-            body = json.loads(self.rfile.read(length))
+            body = self._body()
+            if parsed.path == "/v1/assess":
+                context, result = _assess_payload(body)
+                review = create_review(context, result) if result.decision is Decision.REVIEW else None
+                record(context, result, executed=False)
+                response = result.to_dict()
+                response["review"] = review
+                response["execution"] = "not_requested"
+                self._json(HTTPStatus.OK, response)
+                return
+            if parsed.path == "/v1/model-assess":
+                context, result = _assess_payload(body)
+                response = request_model_advisory(context, result)
+                response["deterministic"] = {
+                    "decision": result.decision.value,
+                    "risk_score": result.risk_score,
+                    "policy_name": result.policy_name,
+                    "policy_version": result.policy_version,
+                }
+                self._json(HTTPStatus.OK, response)
+                return
+            if parsed.path == "/v1/policy":
+                policy = save_policy(body)
+                self._json(HTTPStatus.OK, policy)
+                return
+            if parsed.path == "/v1/trust-controls":
+                controls = save_trust_controls(body)
+                self._json(HTTPStatus.OK, controls)
+                return
+            if review_match is not None:
+                if not isinstance(body, dict):
+                    raise ValueError("payload must be an object")
+                selected = decide_review(
+                    review_match.group(1), str(body.get("status", "")), str(body.get("note", "")) or None
+                )
+                if selected is None:
+                    self._json(HTTPStatus.NOT_FOUND, {"error": "review not found"})
+                else:
+                    self._json(HTTPStatus.OK, selected)
+                return
             items = body if isinstance(body, list) else [body]
             if not all(isinstance(item, dict) for item in items):
                 raise ValueError("payload must be an object or list of objects")

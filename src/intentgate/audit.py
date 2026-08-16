@@ -16,6 +16,7 @@ def record(ctx: CommandContext, result: Assessment, executed: bool, exit_code: i
         "command": ctx.command,
         "cwd": ctx.cwd,
         "user_name": ctx.user_name,
+        "endpoint_name": ctx.endpoint_name,
         "privilege_level": ctx.privilege_level,
         "is_root": ctx.is_root,
         "is_admin": ctx.is_admin,
@@ -25,6 +26,10 @@ def record(ctx: CommandContext, result: Assessment, executed: bool, exit_code: i
         "risk_score": result.risk_score,
         "latency_ms": result.latency_ms,
         "signals": [signal.name for signal in result.signals],
+        "signal_details": [
+            {"name": signal.name, "score": signal.score, "detail": signal.detail}
+            for signal in result.signals
+        ],
         "fingerprint": result.command_fingerprint,
         "executed": executed,
         "exit_code": exit_code,

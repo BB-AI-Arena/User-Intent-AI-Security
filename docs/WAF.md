@@ -29,6 +29,10 @@ docker compose -f docker-compose.observability.yml logs waf
 
 The public API endpoint remains port `8787`; traffic now terminates at the WAF and is proxied internally. Prometheus intentionally scrapes the backend over the private application network.
 
+### Command-assessment payloads
+
+`POST /v1/assess` and `POST /v1/model-assess` intentionally accept shell and PowerShell command text. The Compose deployment mounts route-scoped CRS exclusions from `waf/before-crs` so generic RCE signatures do not consume the very command text Intent Gate must evaluate. The exclusions remove only the `attack-rce` rule tag for those exact routes; SQL injection, protocol validation, size limits, method restrictions, malformed JSON handling, and the remaining CRS protections stay active.
+
 ## Tune safely
 
 Copy `.env.integrations.example` to the ignored `.env.integrations` file. Begin new rules or higher paranoia levels in `DetectionOnly`, observe representative traffic, document false positives, and then switch back to `On`. Do not raise anomaly thresholds as a substitute for a narrow, reviewed rule exclusion.

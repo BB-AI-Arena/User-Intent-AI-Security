@@ -21,3 +21,6 @@ uig-notifier = "intentgate.notifier:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+intentgate = ["web/*"]

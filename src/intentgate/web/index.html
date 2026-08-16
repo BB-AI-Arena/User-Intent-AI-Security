@@ -1,0 +1,290 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Intent Gate operator console for explainable pre-execution command security.">
+  <title>Intent Gate · Operator Console</title>
+  <link rel="stylesheet" href="/console.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="brand" href="#overview" aria-label="Intent Gate home">
+        <span class="brand-mark" aria-hidden="true"><span></span></span>
+        <span><strong>INTENT GATE</strong><small>OPERATOR CONSOLE</small></span>
+      </a>
+      <nav aria-label="Console sections">
+        <a class="nav-link active" href="#overview"><span>01</span>Overview</a>
+        <a class="nav-link" href="#command-lab"><span>02</span>Command Lab</a>
+        <a class="nav-link" href="#reviews"><span>03</span>Review Queue <b id="review-badge">0</b></a>
+        <a class="nav-link" href="#audit"><span>04</span>Audit Trail</a>
+        <a class="nav-link" href="#policy"><span>05</span>Policy</a>
+        <a class="nav-link" href="#trust-controls"><span>06</span>Trust Controls</a>
+        <a class="nav-link" href="#model-advisor"><span>07</span>AI Advisor</a>
+      </nav>
+      <div class="sidebar-foot">
+        <span class="status-dot"></span>
+        <div><strong id="service-status">Connecting</strong><small>LOCAL CONTROL PLANE</small></div>
+      </div>
+    </aside>
+
+    <main>
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">PRE-EXECUTION SECURITY / LOCAL</p>
+          <h1>Operator overview</h1>
+        </div>
+        <button class="token-button" id="token-button" type="button" title="Configure API access token">
+          <span class="key-icon">⌁</span><span id="token-label">Set API token</span>
+        </button>
+      </header>
+
+      <section id="overview" class="section overview-grid">
+        <article class="hero-card">
+          <div>
+            <p class="eyebrow">SECURITY POSTURE</p>
+            <h2>Every command deserves context.</h2>
+            <p>Assess concrete actions against declared intent, privilege, project state, recent behavior, and live security signals—before execution.</p>
+          </div>
+          <div class="posture-ring" id="posture-ring" aria-label="External security posture score">
+            <span id="posture-score">0</span><small>/100</small>
+          </div>
+        </article>
+        <div class="metric-grid">
+          <article class="metric-card allow"><p>Allowed</p><strong id="allow-count">0</strong><small>LOW-RISK ACTIONS</small></article>
+          <article class="metric-card review"><p>In review</p><strong id="review-count">0</strong><small>HUMAN DECISION</small></article>
+          <article class="metric-card block"><p>Blocked</p><strong id="block-count">0</strong><small>POLICY DENIALS</small></article>
+          <article class="metric-card latency"><p>Engine latency</p><strong><span id="latency-value">0.00</span><em> ms</em></strong><small>AVERAGE DECISION</small></article>
+        </div>
+        <article class="intelligence-fabric" aria-labelledby="fabric-title">
+          <div class="fabric-grid" aria-hidden="true"></div>
+          <div class="fabric-heading">
+            <div>
+              <p class="eyebrow">SECURITY INTELLIGENCE FABRIC / LIVE</p>
+              <h2 id="fabric-title">AI-assisted. Behavior-aware. Zero trust.</h2>
+            </div>
+            <div class="live-chip"><i></i> MONITORING</div>
+          </div>
+          <div class="fabric-body">
+            <div class="ai-core-wrap">
+              <div class="ai-core" id="fabric-ai-core"><span>AI</span><i></i><i></i><i></i></div>
+              <strong id="fabric-ai-label">ADVISOR CHECKING</strong>
+              <small id="fabric-ai-detail">Connecting to the model plane</small>
+            </div>
+            <div class="event-radar">
+              <div class="radar-head"><span>LIVE DECISION STREAM</span><b id="fabric-event-count">0 EVENTS</b></div>
+              <div id="fabric-event-stream" class="fabric-event-stream"><p>Waiting for assessment telemetry…</p></div>
+            </div>
+          </div>
+          <div class="capability-grid">
+            <div class="capability-card behavior-card">
+              <div class="capability-top"><span class="capability-icon">↯</span><b>BEHAVIOR MONITORING</b><i class="capability-state alert" id="behavior-state">SCANNING</i></div>
+              <strong id="behavior-headline">Analyzing operator behavior</strong>
+              <div class="observation-list">
+                <p><span>OBSERVATION</span><b id="behavior-summary">Building a behavioral baseline.</b></p>
+                <p><span>TOP OUTLIER</span><b id="behavior-outlier">Not enough evidence yet</b></p>
+              </div>
+              <button class="capability-action" type="button" data-investigate="behavior">Investigate anomalies <b>→</b></button>
+            </div>
+            <div class="capability-card">
+              <div class="capability-top"><span class="capability-icon">◈</span><b>MACHINE LEARNING</b><i class="capability-state">LOCAL</i></div>
+              <strong id="ml-headline">Baseline health · learning</strong>
+              <div class="observation-list">
+                <p><span>MODEL COVERAGE</span><b><span id="ml-sample-count">0</span> gated events · <span id="ml-coverage">0%</span></b></p>
+                <p><span>OBSERVATION</span><b id="ml-observation">Collecting representative command families.</b></p>
+              </div>
+              <div class="confidence-line"><span id="ml-progress"></span></div>
+              <button class="capability-action" type="button" data-investigate="high-risk">Review high-risk outliers <b>→</b></button>
+            </div>
+            <div class="capability-card">
+              <div class="capability-top"><span class="capability-icon">⌘</span><b>MICRO-SEGMENTATION</b><i class="capability-state" id="micro-state">ENFORCED</i></div>
+              <strong id="micro-headline">5 zones · default deny</strong>
+              <div class="observation-list">
+                <p><span>EXPLICIT PATHS</span><b id="micro-flows">5 allowed flows</b></p>
+                <p><span>OBSERVATION</span><b id="micro-observation">No pending topology changes.</b></p>
+              </div>
+              <div class="segment-map" aria-label="Five isolated network zones"><i>EDGE</i><span></span><i>APP</i><span></span><i>OBS</i><span></span><i>MGMT</i><span></span><i>OUT</i></div>
+              <a class="capability-action" href="#trust-controls">Edit network paths <b>→</b></a>
+            </div>
+            <div class="capability-card">
+              <div class="capability-top"><span class="capability-icon">⊘</span><b>ZERO TRUST</b><i class="capability-state" id="trust-state">VERIFY</i></div>
+              <strong id="trust-headline">Identity coverage calculating</strong>
+              <div class="observation-list">
+                <p><span>POLICY</span><b id="trust-policy">Step-up review at 60/100</b></p>
+                <p><span>TRUST GAPS</span><b id="trust-gaps">Analyzing recent decisions.</b></p>
+              </div>
+              <div class="trust-chain"><span>IDENTITY</span><b>→</b><span>INTENT</span><b>→</b><span>POLICY</span><b>→</b><span>AUDIT</span></div>
+              <button class="capability-action" type="button" data-investigate="trust-gap">Investigate trust gaps <b>→</b></button>
+            </div>
+          </div>
+        </article>
+      </section>
+
+      <section id="command-lab" class="section panel command-panel">
+        <div class="section-heading">
+          <div><p class="eyebrow">COMMAND LAB</p><h2>Assess an operation</h2></div>
+          <span class="safe-label">ASSESSMENT ONLY · NEVER EXECUTES</span>
+        </div>
+        <form id="assessment-form">
+          <label for="command">Command</label>
+          <div class="command-input-wrap"><span aria-hidden="true">›_</span><input id="command" name="command" autocomplete="off" spellcheck="false" placeholder="git push --force" required></div>
+          <div class="form-row">
+            <div><label for="purpose">Declared purpose</label><input id="purpose" name="purpose" placeholder="Publish the reviewed release branch"></div>
+            <div><label for="cwd">Working directory</label><input id="cwd" name="cwd" placeholder="Current service directory"></div>
+          </div>
+          <div class="scenario-row" aria-label="Example scenarios">
+            <span>TRY A SCENARIO</span>
+            <button type="button" data-command="git status" data-purpose="Inspect the current repository">Routine read</button>
+            <button type="button" data-command="git push --force" data-purpose="Publish reviewed changes">History rewrite</button>
+            <button type="button" data-command="Remove-Item -Recurse -Force C:\\" data-purpose="Clean build files">Broad delete</button>
+          </div>
+          <button class="primary-button" type="submit"><span>Assess command</span><b>→</b></button>
+        </form>
+
+        <div id="assessment-result" class="assessment-result empty" aria-live="polite">
+          <div class="result-empty"><span>◎</span><p>Decision evidence will appear here.</p></div>
+        </div>
+      </section>
+
+      <section id="reviews" class="section panel">
+        <div class="section-heading">
+          <div><p class="eyebrow">HUMAN AUTHORITY</p><h2>Review queue</h2></div>
+          <button class="text-button" id="refresh-reviews" type="button">Refresh ↻</button>
+        </div>
+        <div id="review-list" class="review-list"><p class="empty-copy">No commands are waiting for review.</p></div>
+      </section>
+
+      <section id="audit" class="section panel">
+        <div class="section-heading">
+          <div><p class="eyebrow">DECISION RECORD</p><h2>Audit trail</h2></div>
+          <button class="text-button" id="refresh-audit" type="button">Refresh ↻</button>
+        </div>
+        <div id="audit-filter-bar" class="audit-filter-bar" hidden><div><span>ACTIVE INVESTIGATION</span><strong id="audit-filter-label">Filtered evidence</strong></div><button id="clear-audit-filter" type="button">Clear filter ×</button></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Time</th><th>Decision</th><th>User</th><th>Endpoint</th><th>Command</th><th>Risk</th></tr></thead>
+            <tbody id="audit-body"><tr><td colspan="6" class="empty-copy">No assessments recorded.</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+
+      <section id="policy" class="section policy-grid">
+        <article class="panel">
+          <div class="section-heading"><div><p class="eyebrow">ACTIVE POLICY</p><h2>Decision thresholds</h2></div><span id="policy-version" class="version-tag">v1</span></div>
+          <form id="policy-form">
+            <label for="policy-name">Policy name</label><input id="policy-name" value="default" maxlength="80">
+            <div class="threshold-row">
+              <label for="review-threshold"><span>Review at</span><output id="review-output">40</output><input id="review-threshold" type="range" min="1" max="99" value="40"></label>
+              <label for="block-threshold"><span>Block at</span><output id="block-output">85</output><input id="block-threshold" type="range" min="2" max="100" value="85"></label>
+            </div>
+            <p class="form-note">Threshold changes are versioned locally and affect future assessments.</p>
+            <button class="secondary-button" type="submit">Save policy revision</button>
+          </form>
+        </article>
+        <article class="panel catalog-panel">
+          <div class="section-heading"><div><p class="eyebrow">TRANSPARENT CONTROLS</p><h2>Rule catalog</h2></div><span id="rule-count" class="version-tag">0 rules</span></div>
+          <div id="rule-catalog" class="rule-catalog"><p class="empty-copy">Connect to inspect policy rules.</p></div>
+        </article>
+      </section>
+
+      <section id="trust-controls" class="section trust-controls-grid">
+        <div class="trust-section-heading">
+          <div><p class="eyebrow">SECURITY CONTROL PLANE</p><h2>Zero trust &amp; micro-segmentation</h2><p>Configure verification policy and explicitly permitted service-to-service paths.</p></div>
+          <span id="trust-version" class="version-tag">v1</span>
+        </div>
+        <form id="trust-controls-form" class="trust-controls-layout">
+          <article class="panel control-config-card">
+            <div class="section-heading"><div><p class="eyebrow">ZERO TRUST POLICY</p><h2>Verify every request</h2></div><span class="control-live-dot">POLICY ACTIVE</span></div>
+            <label for="zt-mode">Enforcement mode</label>
+            <select id="zt-mode">
+              <option value="monitor">Monitor only</option>
+              <option value="review">Step-up review</option>
+              <option value="enforce">Enforce</option>
+            </select>
+            <div class="toggle-stack">
+              <label class="switch-row"><span><strong>Verified identity</strong><small>Require authenticated service or operator identity.</small></span><input id="zt-identity" type="checkbox"><i></i></label>
+              <label class="switch-row"><span><strong>Declared intent</strong><small>Require a purpose before sensitive operations.</small></span><input id="zt-purpose" type="checkbox"><i></i></label>
+              <label class="switch-row"><span><strong>Device posture</strong><small>Correlate active endpoint and identity signals.</small></span><input id="zt-device" type="checkbox"><i></i></label>
+              <label class="switch-row"><span><strong>Continuous behavior</strong><small>Compare action families and sequence velocity.</small></span><input id="zt-behavior" type="checkbox"><i></i></label>
+            </div>
+            <div class="compact-fields">
+              <label for="zt-threshold"><span>Step-up risk</span><input id="zt-threshold" type="number" min="1" max="100"><small>Score / 100</small></label>
+              <label for="zt-ttl"><span>Session TTL</span><input id="zt-ttl" type="number" min="5" max="1440"><small>Minutes</small></label>
+            </div>
+          </article>
+
+          <article class="panel control-config-card segmentation-card">
+            <div class="section-heading"><div><p class="eyebrow">MICRO-SEGMENTATION</p><h2>Network policy designer</h2></div><span id="segment-deploy-status" class="control-live-dot">COMPOSE ENFORCED</span></div>
+            <div class="segment-policy-row">
+              <label for="segment-default">Default traffic</label>
+              <select id="segment-default"><option value="deny">Deny</option><option value="review">Review</option></select>
+              <label class="inline-check"><input id="segment-identity" type="checkbox"> Service identity</label>
+              <label class="inline-check"><input id="segment-log" type="checkbox"> Log denied</label>
+            </div>
+            <p class="config-caption">ACTIVE ZONES</p>
+            <div id="zone-selector" class="zone-selector">
+              <label><input type="checkbox" value="edge"><span>EDGE<small>WAF</small></span></label>
+              <label><input type="checkbox" value="application"><span>APPLICATION<small>Intent Gate</small></span></label>
+              <label><input type="checkbox" value="observability"><span>OBSERVABILITY<small>Prometheus</small></span></label>
+              <label><input type="checkbox" value="management"><span>MANAGEMENT<small>Grafana</small></span></label>
+              <label><input type="checkbox" value="outbound"><span>OUTBOUND<small>Providers</small></span></label>
+            </div>
+            <p class="config-caption">ALLOWED FLOWS · CLICK TO TOGGLE</p>
+            <div id="flow-selector" class="flow-selector">
+              <label><input type="checkbox" value="edge>application"><span>EDGE</span><b>→</b><span>APP</span><small>WAF proxy</small></label>
+              <label><input type="checkbox" value="observability>application"><span>OBS</span><b>→</b><span>APP</span><small>Metrics scrape</small></label>
+              <label><input type="checkbox" value="management>observability"><span>MGMT</span><b>→</b><span>OBS</span><small>Dashboard query</small></label>
+              <label><input type="checkbox" value="application>outbound"><span>APP</span><b>→</b><span>OUT</span><small>AI advisor</small></label>
+              <label><input type="checkbox" value="outbound>external"><span>OUT</span><b>→</b><span>EXT</span><small>Vendor API</small></label>
+            </div>
+            <p class="deployment-note"><b>Runtime boundary:</b> policy changes save immediately; topology changes are staged and require a Docker redeploy.</p>
+          </article>
+          <div class="trust-save-bar"><div><strong id="trust-save-state">Configuration synchronized</strong><small>Authenticated control-plane policy stored locally.</small></div><button class="primary-button" type="submit"><span>Save controls</span><b>→</b></button></div>
+        </form>
+      </section>
+
+      <section id="model-advisor" class="section panel model-panel">
+        <div class="section-heading">
+          <div><p class="eyebrow">PLUGGABLE INTELLIGENCE</p><h2>AI model advisor</h2></div>
+          <span id="model-status-badge" class="version-tag">Checking</span>
+        </div>
+        <div class="model-config-grid">
+          <div><small>PROVIDER</small><strong id="model-provider">—</strong></div>
+          <div><small>MODEL</small><strong id="model-name">—</strong></div>
+          <div><small>MODE</small><strong>Advisory only</strong></div>
+          <div><small>FINAL AUTHORITY</small><strong>Deterministic policy</strong></div>
+        </div>
+        <p id="model-config-note" class="model-note">The model router is checking its configuration.</p>
+        <div class="model-live-banner">
+          <div class="model-live-orb"><span>AI</span><i></i></div>
+          <div><small>INFERENCE STATUS</small><strong id="model-live-title">Connecting to advisor</strong><p id="model-live-copy">Waiting for model health.</p></div>
+          <div class="model-health-grid"><span><b id="model-health-schema">—</b><small>SCHEMA</small></span><span><b id="model-health-latency">—</b><small>LATENCY</small></span><span><b id="model-health-volume">0</b><small>DETERMINATIONS</small></span></div>
+        </div>
+        <div class="model-pipeline" aria-label="AI advisory processing stages"><span>REDACT CONTEXT</span><b>→</b><span>MODEL INFERENCE</span><b>→</b><span>SCHEMA VALIDATE</span><b>→</b><span>HUMAN-AUDITABLE VERDICT</span></div>
+        <div class="recent-model-heading"><div><p class="eyebrow">RECENT MODEL OUTPUT</p><h3>AI determinations</h3></div><span id="model-demo-label" class="demo-label">DEMO SIMULATION</span></div>
+        <div id="recent-model-determinations" class="recent-model-determinations"><p class="empty-copy">Waiting for assessment data.</p></div>
+        <div class="adapter-strip">
+          <span>DEMO SIMULATOR</span><span>OPENAI RESPONSES</span><span>OPENAI-COMPATIBLE</span><span>GENERIC WEBHOOK</span>
+        </div>
+      </section>
+
+      <footer><span>USER INTENT AI SECURITY</span><span>LOCAL POC · COMMAND EXECUTION DISABLED IN CONSOLE</span></footer>
+    </main>
+  </div>
+
+  <dialog id="token-dialog">
+    <form method="dialog" id="token-form">
+      <div class="dialog-mark">⌁</div>
+      <p class="eyebrow">LOCAL API ACCESS</p>
+      <h2>Connect the console</h2>
+      <p>Enter the bearer token configured for this Intent Gate service. It remains in this browser tab only.</p>
+      <label for="api-token">API token</label>
+      <input id="api-token" type="password" autocomplete="off" placeholder="local-dev-change-me">
+      <div class="dialog-actions"><button value="cancel" class="text-button">Cancel</button><button value="default" class="primary-button">Connect</button></div>
+    </form>
+  </dialog>
+  <div id="toast" role="status" aria-live="polite"></div>
+  <script src="/console.js" defer></script>
+</body>
+</html>

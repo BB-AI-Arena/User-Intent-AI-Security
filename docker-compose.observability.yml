@@ -25,6 +25,8 @@ services:
       SERVER_TOKENS: "off"
     ports:
       - "${UIG_BIND_ADDRESS:-127.0.0.1}:${UIG_WAF_PORT:-8787}:8080"
+    volumes:
+      - ./waf/before-crs/intentgate-assessment.conf:/etc/modsecurity.d/owasp-crs/rules/REQUEST-900-EXCLUSION-RULES-BEFORE-CRS.conf:ro
     depends_on:
       intentgate:
         condition: service_healthy
@@ -43,6 +45,12 @@ services:
     environment:
       UIG_STATE_DIR: /state
       UIG_INGEST_TOKEN: ${UIG_INGEST_TOKEN:-local-dev-change-me}
+      UIG_MODEL_PROVIDER: ${UIG_MODEL_PROVIDER:-demo}
+      UIG_MODEL_NAME: ${UIG_MODEL_NAME:-intent-advisor-demo}
+      UIG_MODEL_BASE_URL: ${UIG_MODEL_BASE_URL:-}
+      UIG_MODEL_API_KEY: ${UIG_MODEL_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      UIG_MODEL_TIMEOUT_SECONDS: ${UIG_MODEL_TIMEOUT_SECONDS:-12}
     volumes:
       - ./.intentgate-state:/state
     expose: ["8787"]
@@ -52,7 +60,7 @@ services:
       timeout: 3s
       retries: 5
       start_period: 5s
-    networks: [application]
+    networks: [application, outbound]
     restart: unless-stopped
 
   prometheus:
