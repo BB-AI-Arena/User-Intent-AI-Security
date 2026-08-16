@@ -15,7 +15,7 @@
 
 **A context-aware command execution gate that asks one critical question before code runs: _does this action match the user's intent?_**
 
-[Why it matters](#why-this-project-matters) · [Capabilities](#what-the-project-can-do) · [Use cases](#where-it-can-be-used) · [Quick start](#quick-start) · [Architecture](docs/ARCHITECTURE.md) · [Security](SECURITY.md)
+[Why it matters](#why-this-project-matters) · [Capabilities](#what-the-project-can-do) · [Live POC demo](#run-the-full-poc-demo) · [Use cases](#where-it-can-be-used) · [Quick start](#quick-start) · [Architecture](docs/ARCHITECTURE.md) · [Security](SECURITY.md)
 
 </div>
 
@@ -67,6 +67,8 @@ This project is intended to help teams investigate a missing security layer betw
 | Explainable evidence | Named signals, score contributions, command fingerprint, and latency | Lets operators understand why a decision occurred and tune policy responsibly |
 | Privacy-conscious escalation | Secret redaction, local queueing, thresholds, and asynchronous webhook delivery | Enables human oversight without placing notification latency in the command path |
 | Operational visibility | Prometheus metrics and a provisioned Grafana dashboard | Exposes decision volume, latency, posture, sources, and report backlog |
+| Operator console | Browser-based command assessment, review queue, audit trail, and versioned decision thresholds | Makes the complete decision workflow demonstrable without executing commands from a browser |
+| Pluggable model advisor | OpenAI Responses API, OpenAI-compatible endpoints, or a generic model gateway webhook | Adds an independent structured intent recommendation without making a model the enforcement authority |
 | Protected integration API | OWASP CRS WAF, backend network isolation, bearer-token ingestion, and bounded requests | Reduces attack surface for the security signals that influence policy |
 | Repeatable deployment | Docker Compose, Terraform, and Ansible | Makes the POC reproducible for labs, demos, and controlled evaluations |
 
@@ -148,6 +150,20 @@ The decision engine considers:
 6. Non-expired AV, EDR, and SIEM posture signals scoped to the device, user, or project.
 
 See [Architecture](docs/ARCHITECTURE.md) and [Threat Model](docs/THREAT_MODEL.md) for the deeper design.
+
+## Run the full POC demo
+
+Docker Desktop is the fastest way to launch the complete showcase: the operator console, AI Advisor, zero-trust and micro-segmentation controls, WAF-protected API, Prometheus, and Grafana.
+
+```powershell
+Copy-Item .env.integrations.example .env.integrations
+docker compose --env-file .env.integrations -f docker-compose.observability.yml up -d --build
+.\scripts\Seed-DemoData.ps1
+```
+
+Open the [operator console](http://127.0.0.1:8787/) and select **AI Advisor**, **Trust Controls**, or **Audit Trail**. Grafana is available at [http://127.0.0.1:3000/](http://127.0.0.1:3000/).
+
+The default advisor is an offline, presentation-ready simulation and is always labeled **Demo Simulation** in the interface. It produces structured `ALLOW`, `REVIEW`, and `BLOCK` recommendations without sending data to an external service. To use a real model, configure the ignored `.env.integrations` file as described in [Model Advisory Providers](docs/MODEL_ADVISORS.md).
 
 ## Quick start
 
@@ -265,6 +281,55 @@ docker compose --env-file .env.integrations -f docker-compose.observability.yml 
 | WAF-protected Intent Gate API | `http://localhost:8787` |
 
 The dashboard tracks aggregate security posture, active external signals, decision counts, policy latency, source-level risk, audited commands, and pending manager reports.
+
+## Operator console
+
+The Intent Gate service includes a local operator console for exercising the policy workflow. Start the service and open `http://127.0.0.1:8787/`:
+
+```powershell
+$env:UIG_INGEST_TOKEN = "local-dev-change-me"
+uig-service
+```
+
+Use **Set API token** in the console to enter the configured bearer token. The token is retained only in the current browser tab. The console provides:
+
+- Command and purpose assessment with complete score contributions
+- `ALLOW`, `REVIEW`, and `BLOCK` results with policy version and latency
+- A human review queue with approve and deny decisions
+- An expandable audit surface with user, endpoint, risk score, and scored decision evidence
+- Versioned, locally persisted review and block thresholds
+- Versioned zero-trust step-up controls and a micro-segmentation flow designer
+- An inspectable destructive-action rule catalog
+
+The console is intentionally **assessment-only**. Approving a review records human authorization but never launches the command from the browser. A trusted command broker remains the required production execution boundary.
+
+HTTP assessments use a standard `console-operator` execution context by default rather than inheriting the container service account's root identity. A trusted broker can submit an explicit `execution_context` containing the originating user and privilege level; production enforcement must authenticate that context rather than accepting it directly from an untrusted client.
+
+### Trust controls
+
+The **Trust Controls** console section persists an authenticated local control-plane profile. Zero-trust settings can require declared intent and posture, retain continuous behavior monitoring, and step an otherwise allowed action up to human review at a configured risk threshold. Micro-segmentation settings expose the five Compose network zones and an explicit allow-list of service flows. Network-policy edits are marked `redeploy-required`; saving the design does not silently rewrite or restart Docker networking.
+
+### AI model advisory
+
+The local Docker showcase starts with a clearly labeled, offline Demo Simulation advisor so model-health and structured verdict UI can be demonstrated without a credential. The simulation never contacts an external model and is not an independent security judgment. Configure OpenAI in the ignored `.env.integrations` file to replace it:
+
+```env
+UIG_MODEL_PROVIDER=openai
+UIG_MODEL_NAME=gpt-5.6-luna
+UIG_MODEL_API_KEY=replace-with-an-api-key
+```
+
+Recreate the service with `docker compose --env-file .env.integrations -f docker-compose.observability.yml up -d --build intentgate waf`. Local OpenAI-compatible servers and generic frontier-model gateways use the same normalized result contract. See [Model Advisory Providers](docs/MODEL_ADVISORS.md).
+
+### Load showcase data
+
+With the Docker stack running, populate both the operator console and Grafana with a repeatable demo scenario:
+
+```powershell
+.\scripts\Seed-DemoData.ps1
+```
+
+The seed includes routine development activity, publish and deployment reviews, blocked recovery/security-control operations, manager reports, and correlated Microsoft Defender XDR, CrowdStrike Falcon, and Microsoft Sentinel signals. Every command is assessed only; the seed never executes the submitted command text.
 
 ## Web application firewall
 

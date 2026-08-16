@@ -35,6 +35,7 @@ class CommandContext:
     external_sources: tuple[str, ...] = ()
     external_details: tuple[str, ...] = ()
     user_name: str = "unknown"
+    endpoint_name: str = "unknown-endpoint"
     is_root: bool = False
     is_admin: bool = False
     privilege_level: str = "standard"
@@ -49,6 +50,8 @@ class Assessment:
     signals: list[Signal] = field(default_factory=list)
     latency_ms: float = 0.0
     command_fingerprint: str = ""
+    policy_name: str = "default"
+    policy_version: int = 1
 
     def to_dict(self) -> dict[str, Any]:
         result = asdict(self)
